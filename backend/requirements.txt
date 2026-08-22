@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+pydantic[email]
+google-genai
+supabase
+httpx
+python-dotenv
+python-jose[cryptography]
+passlib[bcrypt]
+pytest
+pytest-asyncio
