@@ -27,7 +27,7 @@ export default function RootLayout({
                   <div className="p-2 bg-primary/10 rounded-lg">
                     <Plane className="h-6 w-6 text-primary" />
                   </div>
-                  <span className="font-bold text-xl text-slate-900 tracking-tight">WanderSync</span>
+                  <span className="font-bold text-xl text-slate-900 tracking-tight">TravelPlanner</span>
                 </Link>
               </div>
               <div className="flex items-center space-x-4">
@@ -49,7 +49,7 @@ export default function RootLayout({
             <div className="col-span-1 md:col-span-2">
               <div className="flex items-center gap-2 mb-4">
                 <Plane className="h-6 w-6 text-primary" />
-                <span className="font-bold text-xl text-white">WanderSync</span>
+                <span className="font-bold text-xl text-white">TravelPlanner</span>
               </div>
               <p className="text-sm text-slate-400 max-w-sm">
                 The world's first truly adaptive AI travel planner. Your trip shouldn't follow a plan. Your plan should follow your trip.
@@ -72,7 +72,7 @@ export default function RootLayout({
             </div>
           </div>
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12 pt-8 border-t border-slate-800 text-sm text-center">
-            &copy; {new Date().getFullYear()} WanderSync. All rights reserved.
+            &copy; {new Date().getFullYear()} TravelPlanner. All rights reserved.
           </div>
         </footer>
       </body>
