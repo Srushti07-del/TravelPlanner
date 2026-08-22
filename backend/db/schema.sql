@@ -28,9 +28,14 @@ CREATE TABLE IF NOT EXISTS trip_changes (
 CREATE TABLE IF NOT EXISTS expenses (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   trip_id UUID REFERENCES trips(id) ON DELETE CASCADE,
+  user_id UUID,
   category TEXT,
   amount NUMERIC,
   description TEXT,
   expense_date DATE,
   created_at TIMESTAMPTZ DEFAULT now()
 );
+
+CREATE INDEX IF NOT EXISTS idx_expenses_trip_id ON expenses(trip_id);
+CREATE INDEX IF NOT EXISTS idx_expenses_user_id ON expenses(user_id);
+CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(expense_date);

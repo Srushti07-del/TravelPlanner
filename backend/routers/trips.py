@@ -1,5 +1,4 @@
-import logging
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Query, Depends
 from typing import List, Dict
 from models.schemas import (
     TripRequest,
@@ -13,17 +12,9 @@ from services.budget_service import BudgetService
 from services.weather_service import WeatherService
 from services.route_optimizer import RouteOptimizer
 from services.places_service import PlacesService
-from db.supabase_client import (
-    save_trip,
-    get_trip,
-    update_trip,
-    delete_trip,
-    list_user_trips,
-)
-from datetime import datetime, timezone
-from auth import get_current_user
-
-logger = logging.getLogger(__name__)
+from services.auth import get_current_user, AuthenticatedUser
+from db.supabase_client import save_trip, get_trip, update_trip, delete_trip, list_user_trips
+from datetime import datetime
 
 router = APIRouter(prefix="/trips", tags=["trips"])
 gemini_service = GeminiService()
@@ -37,71 +28,112 @@ places_service = PlacesService()
 async def generate_trip(request: TripRequest):
     try:
         itinerary_dict = await gemini_service.generate_itinerary(request)
-        itinerary_dict = await _enrich_itinerary_with_external_data(itinerary_dict, request)
 
-        try:
-            forecasts = await weather_service.get_forecast(
-                request.destination, days=len(itinerary_dict.get("days", []))
-            )
-        except Exception:
-            forecasts = []
-        forecast_map = {f["date"]: f for f in forecasts}
+        await _enrich_with_places(itinerary_dict, request.destination)
 
-        for day in itinerary_dict.get("days", []):
-            day_date = day.get("date")
-            forecast = forecast_map.get(day_date)
-            if forecast:
-                day["weather_note"] = (
-                    f"{forecast['temp_max']}C, {forecast['description']}"
-                )
-                day["weather_forecast_available"] = True
-            else:
-                day["weather_note"] = "Forecast unavailable for this date"
-                day["weather_forecast_available"] = False
+        days = itinerary_dict.get("days", [])
+        forecasts = await weather_service.get_forecast(request.destination, days=len(days))
 
+        for i, day in enumerate(days):
+            note_parts = []
+            if i < len(forecasts):
+                fc = forecasts[i]
+                note_parts.append(f"{fc['temp_max']}C, {fc['description']}")
+                classification = weather_service.classify_weather(fc)
+                if not classification["is_outdoor_suitable"] and classification.get("warning"):
+                    note_parts.append(f"Weather alert: {classification['warning']}.")
+            if note_parts:
+                day["weather_note"] = " ".join(note_parts)
+
+            day["total_distance_km"] = _compute_day_distance(day)
+
+        budget_service.validate_within_budget(days, request.total_budget)
         budget_breakdown = budget_service.allocate_budget(
             request.total_budget,
-            len(itinerary_dict.get("days", [])),
+            len(days),
             request.num_travelers,
-            request.travel_style,
+            request.travel_style
         )
         itinerary_dict["budget_breakdown"] = budget_breakdown.model_dump()
-        itinerary_dict["generated_at"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        itinerary_dict["generated_at"] = datetime.utcnow().isoformat() + "Z"
 
-        validated = Itinerary(**itinerary_dict)
-        budget_status = budget_service.calculate_budget_status(
-            validated.total_budget,
-            budget_service.calculate_actual_cost(validated.days),
-            validated.days,
-        )
-        validated_dict = validated.model_dump()
-        validated_dict["actual_cost"] = budget_status["actual_expenses"]
-        validated_dict["remaining_budget"] = budget_status["remaining_budget"]
-        validated_dict["budget_breakdown"]["actual_expenses"] = budget_status["actual_expenses"]
-        validated_dict["budget_breakdown"]["remaining_budget"] = budget_status["remaining_budget"]
-        validated_dict["budget_breakdown"]["projected_trip_cost"] = budget_status["projected_trip_cost"]
-        validated_dict["budget_breakdown"]["budget_status"] = budget_status["status"]
-        return validated_dict
-    except Exception as e:
-        logger.exception("Trip generation failed")
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to generate trip. Please try again.",
-        )
+        return Itinerary(**itinerary_dict)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="An unexpected error occurred.")
+
+
+def _compute_day_distance(day: Dict) -> float:
+    """Compute the real cumulative travel distance for a day from activity coordinates.
+
+    Replaces the LLM's hallucinated total_distance_km with a deterministic
+    great-circle sum of consecutive time-slot coordinates.
+    """
+    slots = day.get("time_slots", [])
+    if len(slots) < 2:
+        return 0.0
+    total = 0.0
+    prev = slots[0]
+    for slot in slots[1:]:
+        try:
+            total += route_optimizer.calculate_distance(
+                float(prev["lat"]), float(prev["lng"]),
+                float(slot["lat"]), float(slot["lng"])
+            )
+        except (KeyError, TypeError, ValueError):
+            return day.get("total_distance_km", 0.0)
+        prev = slot
+    return round(total, 2)
+
+
+async def _enrich_with_places(itinerary_dict: Dict, destination: str) -> None:
+    """Enrich LLM-generated places with real Google Places data, best-effort.
+
+    The LLM proposes place names (planning intent); this resolves them to real
+    coordinates/ratings/addresses. Any failure falls back to the LLM values so
+    generation never crashes because an external API is unavailable.
+    """
+    cache: Dict[str, object] = {}
+
+    async def resolve(name: str):
+        if name not in cache:
+            try:
+                cache[name] = await places_service.resolve_place(name, destination)
+            except Exception:
+                cache[name] = None
+        return cache[name]
+
+    for day in itinerary_dict.get("days", []):
+        for slot in day.get("time_slots", []):
+            name = slot.get("location_name")
+            if not name:
+                continue
+            real = await resolve(name)
+            if real:
+                slot["lat"] = real["lat"]
+                slot["lng"] = real["lng"]
+                slot["location_name"] = real["name"]
+        for restaurant in day.get("restaurants", []):
+            name = restaurant.get("name")
+            if not name:
+                continue
+            real = await resolve(name)
+            if real:
+                restaurant["name"] = real["name"]
+                if real.get("rating") is not None:
+                    restaurant["rating"] = real["rating"]
+                if real.get("address"):
+                    restaurant["address"] = real["address"]
+                if real.get("google_maps_url"):
+                    restaurant["google_maps_url"] = real["google_maps_url"]
 
 
 @router.post("/save")
-async def save_generated_trip(
-    request: SaveTripRequest, authenticated_user_id: str = Depends(get_current_user)
-):
-    if authenticated_user_id != request.user_id:
-        raise HTTPException(
-            status_code=403,
-            detail="You are not authorized to save this trip.",
-        )
+async def save_generated_trip(request: SaveTripRequest, user: AuthenticatedUser = Depends(get_current_user)):
     try:
         data = {
-            "user_id": authenticated_user_id,
+            "user_id": user.user_id,
             "title": request.title,
             "destination": request.itinerary.destination,
             "start_date": request.itinerary.start_date,
@@ -110,177 +142,49 @@ async def save_generated_trip(
             "total_budget": request.itinerary.total_budget,
             "currency": request.itinerary.currency,
             "itinerary": request.itinerary.model_dump(),
-            "budget_breakdown": request.itinerary.budget_breakdown.model_dump(),
+            "budget_breakdown": request.itinerary.budget_breakdown.model_dump()
         }
         saved = await save_trip(data)
         return {"id": saved.get("id"), "title": saved.get("title")}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.exception("Save trip failed")
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to save trip. Please try again.",
-        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="An unexpected error occurred.")
 
 
 @router.get("/user/{user_id}", response_model=List[TripSummary])
-async def get_user_trips(
-    user_id: str,
-    authenticated_user_id: str = Depends(get_current_user)
-):
-    if authenticated_user_id != user_id:
-        raise HTTPException(
-            status_code=403,
-            detail="You are not authorized to view these trips.",
-        )
+async def get_user_trips(user_id: str, user: AuthenticatedUser = Depends(get_current_user)):
+    if user_id != user.user_id:
+        raise HTTPException(status_code=403, detail="Forbidden")
     try:
         trips = await list_user_trips(user_id)
         return [TripSummary(**t) for t in trips]
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.exception("List user trips failed")
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to load trips. Please try again.",
-        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="An unexpected error occurred.")
+
+
+async def _get_user_trip(trip_id: str, user_id: str) -> Dict:
+    trip = await get_trip(trip_id)
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+    if trip.get("user_id") != user_id:
+        raise HTTPException(status_code=404, detail="Trip not found")
+    return trip
 
 
 @router.get("/{trip_id}")
-async def get_trip_endpoint(trip_id: str, user_id: str = Depends(get_current_user)):
-    try:
-        trip = await get_trip(trip_id)
-        if not trip:
-            raise HTTPException(status_code=404, detail="Trip was not found.")
-        if trip.get("user_id") != user_id:
-            raise HTTPException(
-                status_code=403,
-                detail="You are not authorized to access this trip.",
-            )
-        return trip
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.exception("Get trip failed")
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to load trip. Please try again.",
-        )
+async def get_trip_endpoint(trip_id: str, user: AuthenticatedUser = Depends(get_current_user)):
+    trip = await _get_user_trip(trip_id, user.user_id)
+    return trip
 
 
 @router.put("/{trip_id}")
-async def update_trip_endpoint(
-    trip_id: str, updates: Dict, user_id: str = Depends(get_current_user)
-):
-    try:
-        trip = await get_trip(trip_id)
-        if not trip:
-            raise HTTPException(status_code=404, detail="Trip was not found.")
-        if trip.get("user_id") != user_id:
-            raise HTTPException(
-                status_code=403,
-                detail="You are not authorized to update this trip.",
-            )
-        updated = await update_trip(trip_id, updates)
-        return updated
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.exception("Update trip failed")
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to update trip. Please try again.",
-        )
+async def update_trip_endpoint(trip_id: str, user: AuthenticatedUser = Depends(get_current_user), updates: Dict = None):
+    await _get_user_trip(trip_id, user.user_id)
+    updated = await update_trip(trip_id, updates or {})
+    return updated
 
 
 @router.delete("/{trip_id}")
-async def delete_trip_endpoint(trip_id: str, user_id: str = Depends(get_current_user)):
-    try:
-        trip = await get_trip(trip_id)
-        if not trip:
-            raise HTTPException(status_code=404, detail="Trip was not found.")
-        if trip.get("user_id") != user_id:
-            raise HTTPException(
-                status_code=403,
-                detail="You are not authorized to delete this trip.",
-            )
-        success = await delete_trip(trip_id)
-        return {"success": success}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.exception("Delete trip failed")
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to delete trip. Please try again.",
-        )
-
-
-async def _enrich_itinerary_with_external_data(itinerary_dict: dict, request: TripRequest) -> dict:
-    days = itinerary_dict.get("days", [])
-    if not days:
-        return itinerary_dict
-
-    origin_coords = None
-    dest_coords = None
-
-    try:
-        origin_places = await places_service.search_places(
-            query=request.origin, location=request.origin, type=""
-        )
-        if origin_places:
-            geometry = origin_places[0].get("geometry", {})
-            origin_coords = geometry.get("location")
-
-        dest_places = await places_service.search_places(
-            query=request.destination, location=request.destination, type=""
-        )
-        if dest_places:
-            geometry = dest_places[0].get("geometry", {})
-            dest_coords = geometry.get("location")
-    except Exception:
-        logger.debug("Places enrichment failed, continuing without real coordinates")
-
-    for day in days:
-        time_slots = day.get("time_slots", [])
-        if not time_slots:
-            continue
-
-        optimized = route_optimizer.optimize_day_route(
-            time_slots, origin_coords or {"lat": time_slots[0].get("lat", 0), "lng": time_slots[0].get("lng", 0)}
-        )
-        day["time_slots"] = optimized
-
-        total_distance = 0.0
-        for i in range(len(optimized) - 1):
-            try:
-                dist = route_optimizer.calculate_distance(
-                    optimized[i]["lat"],
-                    optimized[i]["lng"],
-                    optimized[i + 1]["lat"],
-                    optimized[i + 1]["lng"],
-                )
-                total_distance += dist
-            except Exception:
-                continue
-        day["total_distance_km"] = round(total_distance, 2)
-
-        for slot in optimized:
-            try:
-                place_details = await places_service.get_place_details(
-                    slot.get("location_name", "")
-                )
-                if place_details:
-                    geometry = place_details.get("geometry", {}).get("location", {})
-                    if geometry:
-                        slot["lat"] = geometry.get("lat", slot.get("lat", 0))
-                        slot["lng"] = geometry.get("lng", slot.get("lng", 0))
-                    if place_details.get("rating"):
-                        slot["rating"] = place_details["rating"]
-                    if place_details.get("formatted_address"):
-                        slot["address"] = place_details["formatted_address"]
-            except Exception:
-                continue
-
-    return itinerary_dict
+async def delete_trip_endpoint(trip_id: str, user: AuthenticatedUser = Depends(get_current_user)):
+    await _get_user_trip(trip_id, user.user_id)
+    success = await delete_trip(trip_id)
+    return {"success": success}

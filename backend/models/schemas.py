@@ -196,6 +196,24 @@ class TripSummary(BaseModel):
     currency: str
     created_at: str
 
+class Expense(BaseModel):
+    id: Optional[str] = None
+    trip_id: str
+    category: str
+    amount: float
+    description: str
+    expense_date: str
+    created_at: Optional[str] = None
 
-class ErrorResponse(BaseModel):
-    error: dict
+class ExpenseCreate(BaseModel):
+    trip_id: str
+    category: str
+    amount: float
+    description: str
+    expense_date: str
+
+class ExpenseUpdate(BaseModel):
+    category: Optional[str] = None
+    amount: Optional[float] = None
+    description: Optional[str] = None
+    expense_date: Optional[str] = None
