@@ -37,7 +37,20 @@ class BudgetService:
             "recommendation": "Cut back on dining and shopping or choose cheaper activities." if is_over else "You are on track and within budget."
         }
 
-    def suggest_savings(self, itinerary: Dict, new_budget: float) -> List[str]:
+    def validate_within_budget(self, days: List[Dict], total_budget: float, tolerance: float = 0.20) -> None:
+        """Deterministically guard against hallucinated over-budget itineraries.
+
+        Raises ValueError if the sum of per-day estimated costs exceeds the
+        user-authorized total budget by more than the tolerance fraction.
+        """
+        planned = sum(float(d.get("estimated_day_cost", 0.0) or 0.0) for d in days)
+        max_allowed = total_budget * (1.0 + tolerance)
+        if planned > max_allowed:
+            raise ValueError(
+                f"Generated itinerary cost ({planned:.2f}) exceeds the authorized "
+                f"budget ({total_budget:.2f}) by more than {int(tolerance * 100)}%."
+            )
+
         return [
             "Switch to public transport or shared cabs instead of private taxis.",
             "Opt for highly-rated street food or local eateries over fine dining.",

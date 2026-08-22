@@ -36,10 +36,31 @@ class GeminiService:
             text = text[:-3]
         return json.loads(text.strip())
 
+    def _validate_coordinates(self, data: dict) -> None:
+        """Reject itineraries whose activities carry out-of-range coordinates.
+
+        The LLM is not a geocoder; impossible coordinates mean the generated
+        plan is unreliable and should not be persisted.
+        """
+        for day in data.get("days", []):
+            for slot in day.get("time_slots", []):
+                lat = slot.get("lat")
+                lng = slot.get("lng")
+                if lat is None or lng is None:
+                    continue
+                if not (-90.0 <= float(lat) <= 90.0 and -180.0 <= float(lng) <= 180.0):
+                    raise ValueError(
+                        f"Invalid coordinates for '{slot.get('activity_name', 'unknown')}': "
+                        f"({lat}, {lng})."
+                    )
+
     def _validate_itinerary_schema(self, data: dict) -> dict:
         """Validate raw dict against Itinerary schema and return validated dict."""
         try:
+            self._validate_coordinates(data)
             return Itinerary(**data).model_dump()
+        except ValueError:
+            raise
         except Exception as exc:
             raise ValueError(f"Itinerary schema validation failed: {exc}")
 
