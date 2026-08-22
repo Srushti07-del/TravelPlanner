@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useTrip } from "@/hooks/useTrip";
 import { api } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 import { Map, Calendar as CalendarIcon, Wallet, Utensils, Activity, MessageSquare } from "lucide-react";
 
 import ItineraryView from "@/components/trip/ItineraryView";
@@ -15,13 +16,17 @@ import WeatherBar from "@/components/trip/WeatherBar";
 export default function TripDashboardPage() {
   const params = useParams();
   const id = params.id as string;
-  const { currentTrip, setCurrentTrip, activeTab, setActiveTab, setSavedTripId } = useTrip();
+  const router = useRouter();
+  const { currentTrip, setCurrentTrip, activeTab, setActiveTab, setSavedTripId, savedTripId } = useTrip();
   const [loading, setLoading] = useState(!currentTrip);
+  const [saving, setSaving] = useState(false);
+  const [authError, setAuthError] = useState(false);
 
   useEffect(() => {
     const loadTrip = async () => {
       if (id === 'preview' && currentTrip) {
         setLoading(false);
+        setAuthError(false);
         return;
       }
       
@@ -29,8 +34,12 @@ export default function TripDashboardPage() {
         const trip = await api.trips.get(id);
         setCurrentTrip(trip);
         setSavedTripId(id);
-      } catch (e) {
+        setAuthError(false);
+      } catch (e: any) {
         console.error("Failed to load trip", e);
+        if (e.status === 401 || e.status === 403) {
+          setAuthError(true);
+        }
       } finally {
         setLoading(false);
       }
@@ -39,10 +48,48 @@ export default function TripDashboardPage() {
     if (!currentTrip || id !== 'preview') {
       loadTrip();
     }
-  }, [id]);
+  }, [id, currentTrip, setCurrentTrip, setSavedTripId]);
+
+  const handleSaveTrip = async () => {
+    if (!currentTrip) return;
+    setSaving(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        router.push('/auth');
+        return;
+      }
+      const result = await api.trips.save(user.id, currentTrip, currentTrip.destination + ' Trip');
+      setSavedTripId(result.id);
+      router.push(`/trip/${result.id}`);
+    } catch (e: any) {
+      console.error("Save failed", e);
+      if (e.status === 401 || e.status === 403) {
+        router.push('/auth');
+      } else {
+        alert("Failed to save trip. Please try again.");
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
 
   if (loading) {
     return <div className="flex h-screen items-center justify-center"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div></div>;
+  }
+
+  if (authError) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-slate-900 mb-4">Unauthorized</h2>
+          <p className="text-slate-500 mb-6">You don't have permission to view this trip.</p>
+          <button onClick={() => router.push('/auth')} className="px-6 py-3 bg-primary text-white rounded-xl font-medium">
+            Sign In
+          </button>
+        </div>
+      </div>
+    );
   }
 
   if (!currentTrip) {
@@ -72,10 +119,17 @@ export default function TripDashboardPage() {
                 <span>{currentTrip.currency} {currentTrip.total_budget} Budget</span>
               </div>
             </div>
-            {id === 'preview' && (
-              <button className="px-4 py-2 bg-primary text-white rounded-lg font-medium text-sm hover:bg-primary/90">
-                Save Trip
+            {id === 'preview' && !savedTripId && (
+              <button 
+                onClick={handleSaveTrip}
+                disabled={saving}
+                className="px-4 py-2 bg-primary text-white rounded-lg font-medium text-sm hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {saving ? 'Saving...' : 'Save Trip'}
               </button>
+            )}
+            {id !== 'preview' && (
+              <span className="text-xs text-slate-400 bg-slate-100 px-3 py-1 rounded-full">Saved</span>
             )}
           </div>
         </div>

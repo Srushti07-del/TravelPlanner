@@ -1,8 +1,21 @@
 import os
 import json
+import logging
 from google import genai
 from google.genai import types
-from models.schemas import TripRequest, ChatRequest, ChatResponse, ReplanRequest, ReplanResponse, Itinerary
+from models.schemas import (
+    TripRequest,
+    ChatRequest,
+    ChatResponse,
+    ReplanRequest,
+    ReplanResponse,
+    Itinerary,
+    DayPlan,
+    TimeSlot,
+    Restaurant,
+)
+
+logger = logging.getLogger(__name__)
 
 
 class GeminiService:
@@ -14,7 +27,6 @@ class GeminiService:
 
     @property
     def client(self) -> genai.Client:
-        """Lazily initialize the Gemini client on first use."""
         if self._client is None:
             api_key = os.getenv("GEMINI_API_KEY")
             if not api_key:
@@ -25,7 +37,6 @@ class GeminiService:
         return self._client
 
     def _extract_json(self, text: str) -> dict:
-        """Strip any markdown code fences and parse raw JSON from Gemini's response."""
         text = text.strip()
         if text.startswith("```json"):
             text = text[7:]
@@ -36,10 +47,6 @@ class GeminiService:
         return json.loads(text.strip())
 
     async def generate_itinerary(self, request: TripRequest) -> dict:
-        """
-        Calls Gemini to generate a complete structured itinerary from the TripRequest.
-        Returns raw dict matching the Itinerary schema.
-        """
         num_days = (request.end_date - request.start_date).days + 1
         prompt = f"""You are an expert AI Travel Planner specialising in Indian travel.
 
@@ -57,6 +64,8 @@ Trip Details:
 - Special Requests: {request.special_requests or 'None'}
 
 Generate a complete, realistic, day-by-day itinerary. Use real place names and realistic INR costs.
+
+IMPORTANT: Do NOT invent factual data such as coordinates, ratings, opening hours, addresses, or exact prices. Leave lat/lng as 0.0. Leave rating as 0.0. Leave distance fields as 0.0. The backend will enrich these with real external data.
 
 Return ONLY raw valid JSON (no markdown, no code blocks) matching this exact schema:
 {{
@@ -91,8 +100,8 @@ Return ONLY raw valid JSON (no markdown, no code blocks) matching this exact sch
           "estimated_cost": float,
           "category": "string (e.g. Beach, Food, Adventure, Culture, Hotel)",
           "location_name": "specific real place name",
-          "lat": float,
-          "lng": float,
+          "lat": 0.0,
+          "lng": 0.0,
           "tips": "practical tip for the traveler"
         }}
       ],
@@ -101,8 +110,8 @@ Return ONLY raw valid JSON (no markdown, no code blocks) matching this exact sch
           "name": "real restaurant name",
           "cuisine": "string",
           "price_range": "Budget/Mid-range/Fine Dining",
-          "rating": float (3.5-5.0),
-          "distance_from_prev_activity_km": float,
+          "rating": 0.0,
+          "distance_from_prev_activity_km": 0.0,
           "dietary_options": ["Vegetarian", "Vegan", "Non-Vegetarian"],
           "opening_hours": "HH:MM AM - HH:MM PM",
           "address": "real address",
@@ -112,7 +121,7 @@ Return ONLY raw valid JSON (no markdown, no code blocks) matching this exact sch
       "estimated_day_cost": float,
       "weather_note": "brief weather expectation for this time of year",
       "transportation_for_day": "main mode of transport for the day",
-      "total_distance_km": float
+      "total_distance_km": 0.0
     }}
   ],
   "ai_notes": "2-3 sentences of key travel tips for this trip",
@@ -124,7 +133,7 @@ Important rules:
 2. Sum of all estimated_day_cost values should be close to total_planned in budget_breakdown
 3. Include {num_days} days exactly
 4. Include 3-5 time_slots per day and 2-3 restaurants per day
-5. Use realistic GPS coordinates for the destination
+5. Use realistic place names for the destination
 6. Costs must be realistic for {request.travel_style.value} travel in India
 """
         response = self.client.models.generate_content(
@@ -135,13 +144,11 @@ Important rules:
                 max_output_tokens=8192,
             ),
         )
-        return self._extract_json(response.text)
+        data = self._extract_json(response.text)
+        self._validate_itinerary(data)
+        return data
 
     async def chat_modify(self, request: ChatRequest) -> ChatResponse:
-        """
-        Processes a natural-language modification request against the current itinerary.
-        Returns a ChatResponse with an optional updated itinerary.
-        """
         prompt = f"""You are an adaptive travel planner AI. A user wants to modify their trip itinerary.
 
 Current Itinerary (JSON):
@@ -154,7 +161,7 @@ Instructions:
 - Preserve all other days and preferences unchanged.
 - Return ONLY raw valid JSON (no markdown) matching this exact schema:
 {{
-  "message": "Your friendly conversational response to the user explaining what you changed",
+  "reply": "Your friendly conversational response to the user explaining what you changed",
   "updated_itinerary": {{ ...complete updated itinerary JSON using the same schema as above, or null if no changes needed... }},
   "changes_summary": "Brief bullet-point summary of what changed, or null if no changes"
 }}
@@ -169,18 +176,17 @@ Instructions:
         )
         data = self._extract_json(response.text)
         updated_itinerary_data = data.get("updated_itinerary")
+        if updated_itinerary_data:
+            self._validate_itinerary(updated_itinerary_data)
         return ChatResponse(
-            message=data.get("message", "I've processed your request."),
+            message=data.get("reply", "I've processed your request."),
             updated_itinerary=Itinerary(**updated_itinerary_data) if updated_itinerary_data else None,
             changes_summary=data.get("changes_summary"),
         )
 
-    async def replan_itinerary(self, request: ReplanRequest) -> ReplanResponse:
-        """
-        Adaptively replans affected days based on a real-world disruption.
-        Supports: weather, delay, budget_change, attraction_closed, location_change,
-                  time_constraint, preference_change.
-        """
+    async def replan_itinerary(
+        self, request: ReplanRequest, enriched_context: dict | None = None
+    ) -> ReplanResponse:
         scenario_guidance = {
             "weather": "Swap outdoor activities with suitable indoor alternatives. Keep costs similar.",
             "delay": f"Recalculate the schedule for affected days. Current location: {request.current_location or 'unknown'}. Remove or shorten activities that no longer fit.",
@@ -192,7 +198,13 @@ Instructions:
         }
 
         guidance = scenario_guidance.get(request.reason.value, "Replan appropriately.")
-        affected_str = f"Days {request.affected_days}" if request.affected_days else "all relevant days"
+        affected_str = (
+            f"Days {request.affected_days}" if request.affected_days else "all relevant days"
+        )
+
+        context_str = ""
+        if enriched_context and enriched_context.get("real_data_available"):
+            context_str = f"\nReal-world data:\n{json.dumps(enriched_context, indent=2)}"
 
         prompt = f"""You are an adaptive travel planner AI. An unexpected situation requires replanning.
 
@@ -200,6 +212,7 @@ Situation: {request.reason.value.replace('_', ' ').title()}
 Context: {request.context}
 Affected: {affected_str}
 Guidance: {guidance}
+{context_str}
 
 Current Itinerary:
 {request.itinerary.model_dump_json(indent=2)}
@@ -209,7 +222,8 @@ Return ONLY raw valid JSON (no markdown) matching this schema:
 {{
   "updated_itinerary": {{ ...complete updated itinerary JSON with only affected days modified... }},
   "changes_made": ["Change 1 description", "Change 2 description", ...],
-  "ai_explanation": "A friendly 2-3 sentence explanation of what changed and why"
+  "ai_explanation": "A friendly 2-3 sentence explanation of what changed and why",
+  "message": "A concise summary message for the user"
 }}
 """
         response = self.client.models.generate_content(
@@ -221,8 +235,19 @@ Return ONLY raw valid JSON (no markdown) matching this schema:
             ),
         )
         data = self._extract_json(response.text)
+        updated_itinerary_data = data.get("updated_itinerary")
+        if updated_itinerary_data:
+            self._validate_itinerary(updated_itinerary_data)
         return ReplanResponse(
-            updated_itinerary=Itinerary(**data["updated_itinerary"]),
+            updated_itinerary=Itinerary(**updated_itinerary_data),
             changes_made=data.get("changes_made", []),
             ai_explanation=data.get("ai_explanation", ""),
+            message=data.get("message", ""),
         )
+
+    def _validate_itinerary(self, data: dict) -> None:
+        try:
+            Itinerary(**data)
+        except Exception as e:
+            logger.error("Invalid itinerary generated by AI: %s", e)
+            raise ValueError(f"AI generated invalid itinerary: {e}")

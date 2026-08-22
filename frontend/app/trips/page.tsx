@@ -7,11 +7,13 @@ import { TripSummary } from "@/types/trip";
 import Link from "next/link";
 import { Calendar, Users, Wallet, Plus, MapPin, Loader2, Trash2 } from "lucide-react";
 import { format } from "date-fns";
+import { useRouter } from "next/navigation";
 
 export default function TripsPage() {
   const [trips, setTrips] = useState<TripSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
+  const router = useRouter();
 
   useEffect(() => {
     const fetchUserAndTrips = async () => {
@@ -22,23 +24,29 @@ export default function TripsPage() {
         try {
           const data = await api.trips.listByUser(user.id);
           setTrips(data);
-        } catch (error) {
+        } catch (error: any) {
           console.error("Failed to load trips", error);
+          if (error.status === 401 || error.status === 403) {
+            router.push("/auth");
+          }
         }
       }
       setLoading(false);
     };
 
     fetchUserAndTrips();
-  }, []);
+  }, [router]);
 
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this trip?")) return;
     try {
       await api.trips.delete(id);
       setTrips(trips.filter(t => t.id !== id));
-    } catch (e) {
+    } catch (e: any) {
       console.error("Delete failed", e);
+      if (e.status === 401 || e.status === 403) {
+        router.push("/auth");
+      }
     }
   };
 
@@ -89,7 +97,6 @@ export default function TripsPage() {
           {trips.map((trip) => (
             <div key={trip.id} className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm hover:shadow-md transition-all group">
               <div className="h-32 bg-slate-100 relative">
-                {/* Fallback pattern for destination image */}
                 <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-secondary/20 mix-blend-multiply"></div>
                 <div className="absolute bottom-4 left-4 text-white drop-shadow-md">
                   <h3 className="text-xl font-bold truncate max-w-[250px]">{trip.destination}</h3>

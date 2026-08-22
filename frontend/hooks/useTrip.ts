@@ -1,6 +1,7 @@
 import { useTripStore } from '../store/tripStore';
 import { api } from '../lib/api';
 import { TripRequest, ReplanReason } from '../types/trip';
+import { supabase } from '../lib/supabase';
 
 export function useTrip() {
   const store = useTripStore();
@@ -24,21 +25,40 @@ export function useTrip() {
     }
   };
 
+  const ensureSavedTrip = async (): Promise<string | null> => {
+    if (store.savedTripId) return store.savedTripId;
+    
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      window.location.href = '/auth';
+      return null;
+    }
+    
+    if (!store.currentTrip) return null;
+    
+    const result = await api.trips.save(user.id, store.currentTrip, store.currentTrip.destination + ' Trip');
+    store.setSavedTripId(result.id);
+    return result.id;
+  };
+
   const sendChatMessage = async (message: string) => {
     if (!store.currentTrip) return;
+    
+    const tripId = await ensureSavedTrip();
+    if (!tripId) return;
     
     store.setIsChatLoading(true);
     store.addChatMessage({ role: 'user', content: message, timestamp: new Date().toISOString() });
     
     try {
       const response = await api.ai.chat({
-        trip_id: store.savedTripId || 'temp_id',
+        trip_id: tripId,
         message,
         itinerary: store.currentTrip,
-        chat_history: store.chatHistory
+        history: store.chatHistory
       });
       
-      store.addChatMessage({ role: 'assistant', content: response.message, timestamp: new Date().toISOString() });
+      store.addChatMessage({ role: 'assistant', content: response.reply, timestamp: new Date().toISOString() });
       
       if (response.updated_itinerary) {
         store.updateItinerary(response.updated_itinerary);
@@ -51,10 +71,13 @@ export function useTrip() {
   const triggerReplan = async (reason: ReplanReason, context: string) => {
     if (!store.currentTrip) return;
     
+    const tripId = await ensureSavedTrip();
+    if (!tripId) return;
+    
     store.setIsReplanning(true);
     try {
       const response = await api.ai.replan({
-        trip_id: store.savedTripId || 'temp_id',
+        trip_id: tripId,
         itinerary: store.currentTrip,
         reason,
         context
@@ -70,6 +93,7 @@ export function useTrip() {
     generateTrip,
     sendChatMessage,
     triggerReplan,
+    ensureSavedTrip,
     ...store
   };
 }
