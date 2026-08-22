@@ -1,14 +1,24 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from models.schemas import ChatRequest, ChatResponse, ReplanRequest, ReplanResponse
 from services.gemini_service import GeminiService
-from db.supabase_client import save_trip_change
+from db.supabase_client import save_trip_change, get_trip
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 gemini_service = GeminiService()
 
+
+async def _verify_trip_owner(trip_id: str, user_id: str) -> None:
+    trip = await get_trip(trip_id)
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+    if trip.get("user_id") != user_id:
+        raise HTTPException(status_code=404, detail="Trip not found")
+
+
 @router.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest):
+async def chat(request: ChatRequest, user_id: str = Query(...)):
     try:
+        await _verify_trip_owner(request.trip_id, user_id)
         response = await gemini_service.chat_modify(request)
         if response.updated_itinerary:
             await save_trip_change({
@@ -18,12 +28,16 @@ async def chat(request: ChatRequest):
                 "updated_days": response.updated_itinerary.model_dump().get("days")
             })
         return response
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="An unexpected error occurred.")
+
 
 @router.post("/replan", response_model=ReplanResponse)
-async def replan(request: ReplanRequest):
+async def replan(request: ReplanRequest, user_id: str = Query(...)):
     try:
+        await _verify_trip_owner(request.trip_id, user_id)
         response = await gemini_service.replan_itinerary(request)
         await save_trip_change({
             "trip_id": request.trip_id,
@@ -32,5 +46,7 @@ async def replan(request: ReplanRequest):
             "updated_days": response.updated_itinerary.model_dump().get("days")
         })
         return response
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="An unexpected error occurred.")

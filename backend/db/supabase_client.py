@@ -2,10 +2,16 @@ import os
 from supabase import create_client, Client
 from typing import Dict, List, Optional
 
+_client: Optional[Client] = None
+
+
 def get_supabase() -> Client:
-    url = os.getenv("SUPABASE_URL", "")
-    key = os.getenv("SUPABASE_SERVICE_KEY", "")
-    return create_client(url, key)
+    global _client
+    if _client is None:
+        url = os.getenv("SUPABASE_URL", "")
+        key = os.getenv("SUPABASE_SERVICE_KEY", "")
+        _client = create_client(url, key)
+    return _client
 
 async def save_trip(trip_data: Dict) -> Dict:
     supabase = get_supabase()

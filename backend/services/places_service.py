@@ -2,6 +2,8 @@ import os
 import httpx
 from typing import List, Dict
 
+_TIMEOUT = 10.0
+
 class PlacesService:
     BASE_URL = "https://maps.googleapis.com/maps/api"
 
@@ -10,10 +12,13 @@ class PlacesService:
         if not api_key:
             return {}
         params["key"] = api_key
-        async with httpx.AsyncClient() as client:
-            response = await client.get(f"{self.BASE_URL}/{endpoint}", params=params)
-            if response.status_code == 200:
-                return response.json()
+        try:
+            async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+                response = await client.get(f"{self.BASE_URL}/{endpoint}", params=params)
+                if response.status_code == 200:
+                    return response.json()
+        except httpx.HTTPError:
+            pass
         return {}
 
     async def search_places(self, query: str, location: str, type: str) -> List[Dict]:

@@ -2,6 +2,7 @@ import os
 import json
 from google import genai
 from google.genai import types
+from google.genai.errors import APIError
 from models.schemas import TripRequest, ChatRequest, ChatResponse, ReplanRequest, ReplanResponse, Itinerary
 
 
@@ -34,6 +35,39 @@ class GeminiService:
         if text.endswith("```"):
             text = text[:-3]
         return json.loads(text.strip())
+
+    def _validate_itinerary_schema(self, data: dict) -> dict:
+        """Validate raw dict against Itinerary schema and return validated dict."""
+        try:
+            return Itinerary(**data).model_dump()
+        except Exception as exc:
+            raise ValueError(f"Itinerary schema validation failed: {exc}")
+
+    def _validate_budget_schema(self, data: dict) -> dict:
+        """Validate raw dict against BudgetBreakdown schema and return validated dict."""
+        try:
+            from models.schemas import BudgetBreakdown
+            return BudgetBreakdown(**data).model_dump()
+        except Exception as exc:
+            raise ValueError(f"BudgetBreakdown schema validation failed: {exc}")
+
+    async def _generate_content(self, prompt: str, temperature: float = 0.7) -> str:
+        """Call Gemini with timeout and structured error handling."""
+        try:
+            response = self.client.models.generate_content(
+                model=self.model,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    temperature=temperature,
+                    max_output_tokens=8192,
+                ),
+                request_options={"timeout": 60},
+            )
+            return response.text
+        except APIError as exc:
+            raise ValueError(f"Gemini API error: {exc}") from exc
+        except Exception as exc:
+            raise ValueError(f"Gemini request failed: {exc}") from exc
 
     async def generate_itinerary(self, request: TripRequest) -> dict:
         """
@@ -127,15 +161,11 @@ Important rules:
 5. Use realistic GPS coordinates for the destination
 6. Costs must be realistic for {request.travel_style.value} travel in India
 """
-        response = self.client.models.generate_content(
-            model=self.model,
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                temperature=0.7,
-                max_output_tokens=8192,
-            ),
-        )
-        return self._extract_json(response.text)
+        text = await self._generate_content(prompt, temperature=0.7)
+        data = self._extract_json(text)
+        self._validate_itinerary_schema(data)
+        self._validate_budget_schema(data.get("budget_breakdown", {}))
+        return data
 
     async def chat_modify(self, request: ChatRequest) -> ChatResponse:
         """
@@ -159,19 +189,15 @@ Instructions:
   "changes_summary": "Brief bullet-point summary of what changed, or null if no changes"
 }}
 """
-        response = self.client.models.generate_content(
-            model=self.model,
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                temperature=0.6,
-                max_output_tokens=8192,
-            ),
-        )
-        data = self._extract_json(response.text)
+        text = await self._generate_content(prompt, temperature=0.6)
+        data = self._extract_json(text)
         updated_itinerary_data = data.get("updated_itinerary")
+        validated_itinerary = None
+        if updated_itinerary_data:
+            validated_itinerary = Itinerary(**self._validate_itinerary_schema(updated_itinerary_data))
         return ChatResponse(
             message=data.get("message", "I've processed your request."),
-            updated_itinerary=Itinerary(**updated_itinerary_data) if updated_itinerary_data else None,
+            updated_itinerary=validated_itinerary,
             changes_summary=data.get("changes_summary"),
         )
 
@@ -212,17 +238,10 @@ Return ONLY raw valid JSON (no markdown) matching this schema:
   "ai_explanation": "A friendly 2-3 sentence explanation of what changed and why"
 }}
 """
-        response = self.client.models.generate_content(
-            model=self.model,
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                temperature=0.6,
-                max_output_tokens=8192,
-            ),
-        )
-        data = self._extract_json(response.text)
+        text = await self._generate_content(prompt, temperature=0.6)
+        data = self._extract_json(text)
         return ReplanResponse(
-            updated_itinerary=Itinerary(**data["updated_itinerary"]),
+            updated_itinerary=Itinerary(**self._validate_itinerary_schema(data["updated_itinerary"])),
             changes_made=data.get("changes_made", []),
             ai_explanation=data.get("ai_explanation", ""),
         )

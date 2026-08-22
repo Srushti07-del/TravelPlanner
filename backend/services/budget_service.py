@@ -26,7 +26,7 @@ class BudgetService:
             days_passed = total_days - days_remaining
             expected_spent = (total_budget / total_days) * days_passed
         else:
-            expected_spent = total_budget * (1.0 - (days_remaining / max(1, days_remaining + 1)))
+            expected_spent = 0.0
         
         overspend = max(0.0, round(spent - expected_spent, 2))
         is_over = overspend > 0.05 or remaining < 0
