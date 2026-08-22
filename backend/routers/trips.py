@@ -5,7 +5,6 @@ from models.schemas import (
     Itinerary,
     SaveTripRequest,
     TripSummary,
-    ErrorResponse,
 )
 from services.gemini_service import GeminiService
 from services.budget_service import BudgetService

@@ -1,6 +1,9 @@
 import os
 import json
 import logging
+
+logger = logging.getLogger(__name__)
+
 from google import genai
 from google.genai import types
 from google.genai.errors import APIError
@@ -81,7 +84,6 @@ class GeminiService:
                     temperature=temperature,
                     max_output_tokens=8192,
                 ),
-                request_options={"timeout": 60},
             )
             return response.text
         except APIError as exc:
