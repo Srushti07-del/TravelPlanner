@@ -1,6 +1,7 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Depends
 from models.schemas import ChatRequest, ChatResponse, ReplanRequest, ReplanResponse
 from services.gemini_service import GeminiService
+from services.auth import get_current_user, AuthenticatedUser
 from db.supabase_client import save_trip_change, get_trip
 
 router = APIRouter(prefix="/ai", tags=["ai"])
@@ -16,9 +17,9 @@ async def _verify_trip_owner(trip_id: str, user_id: str) -> None:
 
 
 @router.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest, user_id: str = Query(...)):
+async def chat(request: ChatRequest, user: AuthenticatedUser = Depends(get_current_user)):
     try:
-        await _verify_trip_owner(request.trip_id, user_id)
+        await _verify_trip_owner(request.trip_id, user.user_id)
         response = await gemini_service.chat_modify(request)
         if response.updated_itinerary:
             await save_trip_change({
@@ -35,9 +36,9 @@ async def chat(request: ChatRequest, user_id: str = Query(...)):
 
 
 @router.post("/replan", response_model=ReplanResponse)
-async def replan(request: ReplanRequest, user_id: str = Query(...)):
+async def replan(request: ReplanRequest, user: AuthenticatedUser = Depends(get_current_user)):
     try:
-        await _verify_trip_owner(request.trip_id, user_id)
+        await _verify_trip_owner(request.trip_id, user.user_id)
         response = await gemini_service.replan_itinerary(request)
         await save_trip_change({
             "trip_id": request.trip_id,

@@ -8,7 +8,7 @@ from pydantic import ValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from dotenv import load_dotenv
 
-from routers import trips, ai, places, weather
+from routers import trips, ai, places, weather, expenses
 
 load_dotenv()
 
@@ -46,6 +46,7 @@ app.include_router(trips.router)
 app.include_router(ai.router)
 app.include_router(places.router)
 app.include_router(weather.router)
+app.include_router(expenses.router)
 
 
 @app.get("/health")

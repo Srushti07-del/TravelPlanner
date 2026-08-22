@@ -42,3 +42,39 @@ async def save_trip_change(change_data: Dict) -> Dict:
     supabase = get_supabase()
     response = supabase.table("trip_changes").insert(change_data).execute()
     return response.data[0] if response.data else {}
+
+async def create_expense(expense_data: Dict) -> Dict:
+    supabase = get_supabase()
+    response = supabase.table("expenses").insert(expense_data).execute()
+    return response.data[0] if response.data else {}
+
+async def get_expense(expense_id: str) -> Optional[Dict]:
+    supabase = get_supabase()
+    response = supabase.table("expenses").select("*").eq("id", expense_id).execute()
+    return response.data[0] if response.data else None
+
+async def list_trip_expenses(trip_id: str) -> List[Dict]:
+    supabase = get_supabase()
+    response = supabase.table("expenses").select("*").eq("trip_id", trip_id).order("expense_date", desc=False).execute()
+    return response.data
+
+async def update_expense(expense_id: str, updates: Dict) -> Dict:
+    supabase = get_supabase()
+    response = supabase.table("expenses").update(updates).eq("id", expense_id).execute()
+    return response.data[0] if response.data else {}
+
+async def delete_expense(expense_id: str) -> bool:
+    supabase = get_supabase()
+    response = supabase.table("expenses").delete().eq("id", expense_id).execute()
+    return len(response.data) > 0
+
+async def get_expense_summary(trip_id: str) -> Dict:
+    supabase = get_supabase()
+    response = supabase.table("expenses").select("category, amount").eq("trip_id", trip_id).execute()
+    rows = response.data or []
+    total = sum(float(r.get("amount", 0) or 0) for r in rows)
+    by_category: Dict[str, float] = {}
+    for r in rows:
+        cat = r.get("category") or "other"
+        by_category[cat] = by_category.get(cat, 0.0) + float(r.get("amount", 0) or 0)
+    return {"total_spent": round(total, 2), "by_category": {k: round(v, 2) for k, v in by_category.items()}}

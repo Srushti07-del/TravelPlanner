@@ -29,7 +29,10 @@ class PlacesService:
         Never raises — callers fall back to existing (LLM) values.
         """
         query = f"{name} {destination}".strip()
-        data = await self._make_request("place/textsearch/json", {"query": query})
+        try:
+            data = await self._make_request("place/textsearch/json", {"query": query})
+        except Exception:
+            return None
         results = data.get("results", [])
         if not results:
             return None

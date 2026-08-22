@@ -2,6 +2,7 @@ import pytest
 from services.gemini_service import GeminiService
 from services.budget_service import BudgetService
 from services.route_optimizer import RouteOptimizer
+from services.places_service import PlacesService
 from routers import trips as trips_router
 
 
@@ -78,3 +79,86 @@ def test_validate_within_budget_tolerance_boundary():
     service.validate_within_budget([{"estimated_day_cost": 11999.0}], 10000.0)
     with pytest.raises(ValueError):
         service.validate_within_budget([{"estimated_day_cost": 12001.0}], 10000.0)
+
+
+_SAMPLE_GOOGLE = {
+    "results": [
+        {
+            "name": "Basilica of Bom Jesus",
+            "geometry": {"location": {"lat": 15.5046, "lng": 73.9108}},
+            "rating": 4.6,
+            "formatted_address": "Old Goa, Goa 403402",
+            "place_id": "abc123",
+        }
+    ]
+}
+
+
+@pytest.mark.asyncio
+async def test_resolve_place_normalizes_real_result(monkeypatch):
+    service = PlacesService()
+
+    async def fake_make_request(self, endpoint, params):
+        return _SAMPLE_GOOGLE
+
+    monkeypatch.setattr(PlacesService, "_make_request", fake_make_request)
+    result = await service.resolve_place("Basilica", "Goa")
+    assert result["lat"] == 15.5046
+    assert result["lng"] == 73.9108
+    assert result["rating"] == 4.6
+    assert result["address"] == "Old Goa, Goa 403402"
+    assert "abc123" in result["google_maps_url"]
+
+
+@pytest.mark.asyncio
+async def test_resolve_place_returns_none_on_empty(monkeypatch):
+    service = PlacesService()
+
+    async def fake_make_request(self, endpoint, params):
+        return {}
+
+    monkeypatch.setattr(PlacesService, "_make_request", fake_make_request)
+    assert await service.resolve_place("Nowhere", "Goa") is None
+
+
+@pytest.mark.asyncio
+async def test_resolve_place_never_raises(monkeypatch):
+    service = PlacesService()
+
+    async def fake_make_request(self, endpoint, params):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(PlacesService, "_make_request", fake_make_request)
+    # No API key path also returns None safely; with a forced crash it must not raise.
+    assert await service.resolve_place("X", "Y") is None
+
+
+@pytest.mark.asyncio
+async def test_enrich_with_places_overrides_coords(monkeypatch):
+    service = PlacesService()
+
+    async def fake_make_request(self, endpoint, params):
+        return _SAMPLE_GOOGLE
+
+    monkeypatch.setattr(PlacesService, "_make_request", fake_make_request)
+
+    itinerary = {
+        "days": [
+            {
+                "day_number": 1,
+                "time_slots": [
+                    {"location_name": "Basilica", "lat": 0.0, "lng": 0.0},
+                ],
+                "restaurants": [
+                    {"name": "Basilica", "rating": 0.0, "address": "", "google_maps_url": ""},
+                ],
+            }
+        ]
+    }
+    await trips_router._enrich_with_places(itinerary, "Goa")
+    slot = itinerary["days"][0]["time_slots"][0]
+    assert slot["lat"] == 15.5046
+    assert slot["lng"] == 73.9108
+    rest = itinerary["days"][0]["restaurants"][0]
+    assert rest["rating"] == 4.6
+    assert rest["address"] == "Old Goa, Goa 403402"
