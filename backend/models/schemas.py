@@ -112,6 +112,16 @@ class BudgetBreakdown(BaseModel):
     budget_status: str = "within_budget"
 
 
+class PackingListItem(BaseModel):
+    item_name: str
+    reason: str
+
+
+class PackingListCategory(BaseModel):
+    category_name: str
+    items: List[PackingListItem]
+
+
 class Itinerary(BaseModel):
     trip_id: Optional[str] = None
     destination: str
@@ -127,6 +137,7 @@ class Itinerary(BaseModel):
     generated_at: str
     actual_cost: float = 0.0
     remaining_budget: float = 0.0
+    packing_list: Optional[List[PackingListCategory]] = None
 
 
 class ChatMessage(BaseModel):
@@ -150,6 +161,15 @@ class ChatResponse(BaseModel):
     changes_summary: Optional[str] = None
 
     model_config = {"populate_by_name": True}
+
+
+class PackingListRequest(BaseModel):
+    trip_id: str
+    itinerary: Itinerary
+
+
+class PackingListResponse(BaseModel):
+    packing_list: List[PackingListCategory]
 
 
 class ReplanReason(str, Enum):

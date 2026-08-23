@@ -139,19 +139,27 @@ export function MapView({
     const init = async () => {
       try {
         await loadMapScript();
-        if (cancelled || !mapContainer.current || map.current || !window.google?.maps) {
+        if (
+          cancelled ||
+          !mapContainer.current ||
+          map.current ||
+          !window.google?.maps
+        ) {
           return;
         }
 
-        const initializedMap = new window.google.maps.Map(mapContainer.current, {
-          zoom: initialZoom,
-          center: initialCenter,
-          mapTypeControl: true,
-          fullscreenControl: true,
-          zoomControl: true,
-          streetViewControl: true,
-          mapId: "DEMO_MAP_ID",
-        });
+        const initializedMap = new window.google.maps.Map(
+          mapContainer.current,
+          {
+            zoom: initialZoom,
+            center: initialCenter,
+            mapTypeControl: true,
+            fullscreenControl: true,
+            zoomControl: true,
+            streetViewControl: true,
+            mapId: "DEMO_MAP_ID",
+          }
+        );
 
         map.current = initializedMap;
         onMapReady?.(initializedMap);

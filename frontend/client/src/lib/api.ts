@@ -8,9 +8,20 @@ const api = axios.create({
 });
 
 export type TravelStyle = "budget" | "comfort" | "luxury";
-export type Interest = "beaches" | "adventure" | "food" | "culture" | "nature" | "nightlife" | "shopping" | "history" | "wellness";
-export type FoodPreference = "vegetarian" | "vegan" | "non_vegetarian" | "no_preference";
-export type AccommodationPreference = "hostel" | "budget_hotel" | "mid_range" | "luxury";
+export type Interest =
+  | "beaches"
+  | "adventure"
+  | "food"
+  | "culture"
+  | "nature"
+  | "nightlife"
+  | "shopping"
+  | "history"
+  | "wellness";
+export type FoodPreference =
+  "vegetarian" | "vegan" | "non_vegetarian" | "no_preference";
+export type AccommodationPreference =
+  "hostel" | "budget_hotel" | "mid_range" | "luxury";
 export type TransportPreference = "public" | "taxi" | "rental" | "walking";
 
 export interface TripRequest {
@@ -82,6 +93,16 @@ export interface BudgetBreakdown {
   budget_status: string;
 }
 
+export interface PackingListItem {
+  item_name: string;
+  reason: string;
+}
+
+export interface PackingListCategory {
+  category_name: string;
+  items: PackingListItem[];
+}
+
 export interface Itinerary {
   trip_id?: string;
   destination: string;
@@ -97,9 +118,21 @@ export interface Itinerary {
   generated_at: string;
   actual_cost: number;
   remaining_budget: number;
+  packing_list?: PackingListCategory[];
 }
 
 export async function generateTrip(request: TripRequest): Promise<Itinerary> {
   const response = await api.post<Itinerary>("/trips/generate", request);
   return response.data;
+}
+
+export async function generatePackingList(
+  trip_id: string,
+  itinerary: Itinerary
+): Promise<PackingListCategory[]> {
+  const response = await api.post<{ packing_list: PackingListCategory[] }>(
+    "/ai/packing-list",
+    { trip_id, itinerary }
+  );
+  return response.data.packing_list;
 }

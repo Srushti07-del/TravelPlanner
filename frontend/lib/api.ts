@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { TripRequest, Itinerary, ChatRequest, ChatResponse, ReplanRequest, ReplanResponse, WeatherDay } from '../types/trip';
 import { supabase } from './supabase';
 

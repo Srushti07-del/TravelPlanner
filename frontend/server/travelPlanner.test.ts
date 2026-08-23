@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { advancePlanner, applyWeatherAlternative, editActivity, type Activity, type PlannerPreferences } from "../shared/travelPlanner";
+import {
+  advancePlanner,
+  applyWeatherAlternative,
+  editActivity,
+  type Activity,
+  type PlannerPreferences,
+} from "../shared/travelPlanner";
 
 const preferences: PlannerPreferences = {
   destination: "Amalfi Coast",

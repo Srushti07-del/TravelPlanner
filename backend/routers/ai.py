@@ -1,8 +1,8 @@
 from fastapi import APIRouter, HTTPException, Depends
-from models.schemas import ChatRequest, ChatResponse, ReplanRequest, ReplanResponse
+from models.schemas import ChatRequest, ChatResponse, ReplanRequest, ReplanResponse, PackingListRequest, PackingListResponse
 from services.gemini_service import GeminiService
 from services.auth import get_current_user, AuthenticatedUser
-from db.supabase_client import save_trip_change, get_trip
+from db.supabase_client import save_trip_change, get_trip, update_trip
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 gemini_service = GeminiService()
@@ -47,6 +47,25 @@ async def replan(request: ReplanRequest, user: AuthenticatedUser = Depends(get_c
             "updated_days": response.updated_itinerary.model_dump().get("days"),
         })
         return response
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="An unexpected error occurred.")
+
+
+@router.post("/packing-list", response_model=PackingListResponse)
+async def generate_packing_list(request: PackingListRequest, user: AuthenticatedUser = Depends(get_current_user)):
+    try:
+        if request.trip_id != "preview":
+            await _verify_trip_owner(request.trip_id, user.user_id)
+            
+        packing_list = await gemini_service.generate_packing_list(request.itinerary)
+        
+        if request.trip_id != "preview":
+            serialized_packing_list = [cat.model_dump() for cat in packing_list]
+            await update_trip(request.trip_id, {"packing_list": serialized_packing_list})
+        
+        return PackingListResponse(packing_list=packing_list)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
     except Exception as exc:
