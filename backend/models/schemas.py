@@ -81,7 +81,8 @@ class Restaurant(BaseModel):
     dietary_options: List[str]
     opening_hours: str
     address: str
-    google_maps_url: str
+    maps_url: Optional[str] = ""
+    google_maps_url: Optional[str] = ""  # backwards compat for saved trips
 
 
 class DayPlan(BaseModel):

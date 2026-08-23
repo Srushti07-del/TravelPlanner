@@ -92,6 +92,7 @@ Run the SQL in `backend/db/schema.sql` in your Supabase project's SQL Editor.
 ### 5. Run the App
 
 **Terminal 1 — Backend:**
+
 ```bash
 cd backend
 venv\Scripts\activate
@@ -99,6 +100,7 @@ uvicorn main:app --reload --port 8000
 ```
 
 **Terminal 2 — Frontend:**
+
 ```bash
 cd frontend
 npm run dev
@@ -110,12 +112,12 @@ Open [http://localhost:3000](http://localhost:3000) 🎉
 
 ## 🔑 API Keys
 
-| Service | Purpose | Free Tier | Get Key |
-|---------|---------|-----------|---------|
-| **Google Gemini** | AI itinerary generation | Yes (generous) | [aistudio.google.com](https://aistudio.google.com/app/apikey) |
-| **Supabase** | Database + Auth | Yes (500MB) | [supabase.com](https://supabase.com) |
-| **Google Maps** | Maps + Places + Distance | $200/month credit | [console.cloud.google.com](https://console.cloud.google.com/apis/credentials) |
-| **OpenWeatherMap** | Weather forecasts | Yes (1000 calls/day) | [openweathermap.org](https://openweathermap.org/api) |
+| Service            | Purpose                  | Free Tier            | Get Key                                                                       |
+| ------------------ | ------------------------ | -------------------- | ----------------------------------------------------------------------------- |
+| **Google Gemini**  | AI itinerary generation  | Yes (generous)       | [aistudio.google.com](https://aistudio.google.com/app/apikey)                 |
+| **Supabase**       | Database + Auth          | Yes (500MB)          | [supabase.com](https://supabase.com)                                          |
+| **Google Maps**    | Maps + Places + Distance | $200/month credit    | [console.cloud.google.com](https://console.cloud.google.com/apis/credentials) |
+| **OpenWeatherMap** | Weather forecasts        | Yes (1000 calls/day) | [openweathermap.org](https://openweathermap.org/api)                          |
 
 > **Note:** Google Maps requires a billing-enabled GCP account, but you get $200/month free credit which covers typical development usage. The app gracefully degrades if Maps key is not set.
 
@@ -124,46 +126,50 @@ Open [http://localhost:3000](http://localhost:3000) 🎉
 ## 📡 API Endpoints
 
 ### Trips
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/trips/generate` | Generate AI itinerary |
-| POST | `/trips/save` | Save trip to database |
-| GET | `/trips/{id}` | Get trip by ID |
-| PUT | `/trips/{id}` | Update saved trip |
-| DELETE | `/trips/{id}` | Delete trip |
-| GET | `/trips/user/{user_id}` | List user's trips |
+
+| Method | Endpoint                | Description           |
+| ------ | ----------------------- | --------------------- |
+| POST   | `/trips/generate`       | Generate AI itinerary |
+| POST   | `/trips/save`           | Save trip to database |
+| GET    | `/trips/{id}`           | Get trip by ID        |
+| PUT    | `/trips/{id}`           | Update saved trip     |
+| DELETE | `/trips/{id}`           | Delete trip           |
+| GET    | `/trips/user/{user_id}` | List user's trips     |
 
 ### AI
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/ai/chat` | Conversational itinerary modification |
-| POST | `/ai/replan` | Adaptive replanning (weather/delay/budget) |
+
+| Method | Endpoint     | Description                                |
+| ------ | ------------ | ------------------------------------------ |
+| POST   | `/ai/chat`   | Conversational itinerary modification      |
+| POST   | `/ai/replan` | Adaptive replanning (weather/delay/budget) |
 
 ### Places & Weather
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/places/search` | Search places |
-| GET | `/places/nearby` | Nearby places |
-| GET | `/weather/{destination}` | 5-day forecast |
+
+| Method | Endpoint                 | Description    |
+| ------ | ------------------------ | -------------- |
+| GET    | `/places/search`         | Search places  |
+| GET    | `/places/nearby`         | Nearby places  |
+| GET    | `/weather/{destination}` | 5-day forecast |
 
 ---
 
 ## 🧠 Adaptive Replanning Scenarios
 
-| Trigger | Example | AI Response |
-|---------|---------|-------------|
-| **Weather** | "It will rain tomorrow" | Swaps outdoor activities for indoor alternatives |
-| **Delay** | "My train is 3 hours late" | Recalculates timing for affected day |
-| **Budget** | "I only have ₹4,000 left" | Finds cheaper restaurants, free activities |
-| **Closure** | Attraction closed | Replaces with similar nearby attraction |
-| **Location** | "I'm at Baga Beach with 3 hours" | Suggests best nearby options |
-| **Preference** | "Make it more adventurous" | Swaps activities to match new preference |
+| Trigger        | Example                          | AI Response                                      |
+| -------------- | -------------------------------- | ------------------------------------------------ |
+| **Weather**    | "It will rain tomorrow"          | Swaps outdoor activities for indoor alternatives |
+| **Delay**      | "My train is 3 hours late"       | Recalculates timing for affected day             |
+| **Budget**     | "I only have ₹4,000 left"        | Finds cheaper restaurants, free activities       |
+| **Closure**    | Attraction closed                | Replaces with similar nearby attraction          |
+| **Location**   | "I'm at Baga Beach with 3 hours" | Suggests best nearby options                     |
+| **Preference** | "Make it more adventurous"       | Swaps activities to match new preference         |
 
 ---
 
 ## 🗺️ Roadmap
 
 ### Phase 1 (MVP — Current)
+
 - [x] AI trip generation
 - [x] Budget management
 - [x] Route optimization
@@ -174,6 +180,7 @@ Open [http://localhost:3000](http://localhost:3000) 🎉
 - [x] Google Maps integration
 
 ### Phase 2
+
 - [ ] Real-time location tracking
 - [ ] Expense tracking
 - [ ] Flight/train information (Amadeus API)
@@ -182,6 +189,7 @@ Open [http://localhost:3000](http://localhost:3000) 🎉
 - [ ] Trip sharing
 
 ### Phase 3
+
 - [ ] Personal travel memory (learns preferences)
 - [ ] Predictive planning (proactive alerts)
 - [ ] Group trip collaboration
@@ -191,17 +199,17 @@ Open [http://localhost:3000](http://localhost:3000) 🎉
 
 ## 🛠️ Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Frontend | Next.js 14, TypeScript, Tailwind CSS |
-| State | Zustand |
-| Backend | FastAPI, Python 3.11 |
-| AI | Google Gemini 1.5 Flash |
-| Database | Supabase (PostgreSQL) |
-| Auth | Supabase Auth |
-| Maps | Google Maps JavaScript API |
-| Weather | OpenWeatherMap API |
-| Optimization | Greedy TSP (Python) |
+| Layer        | Technology                           |
+| ------------ | ------------------------------------ |
+| Frontend     | Next.js 14, TypeScript, Tailwind CSS |
+| State        | Zustand                              |
+| Backend      | FastAPI, Python 3.11                 |
+| AI           | Google Gemini 1.5 Flash              |
+| Database     | Supabase (PostgreSQL)                |
+| Auth         | Supabase Auth                        |
+| Maps         | Google Maps JavaScript API           |
+| Weather      | OpenWeatherMap API                   |
+| Optimization | Greedy TSP (Python)                  |
 
 ---
 
