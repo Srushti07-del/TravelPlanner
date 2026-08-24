@@ -160,7 +160,7 @@ Return ONLY raw valid JSON (no markdown, no code blocks) matching this exact sch
           "dietary_options": ["Vegetarian", "Vegan", "Non-Vegetarian"],
           "opening_hours": "HH:MM AM - HH:MM PM",
           "address": "real address",
-          "google_maps_url": "https://maps.google.com/?q=restaurant+name+city"
+          "maps_url": ""
         }}
       ],
       "estimated_day_cost": float,

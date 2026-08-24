@@ -87,11 +87,12 @@ def _compute_day_distance(day: Dict) -> float:
 
 
 async def _enrich_with_places(itinerary_dict: Dict, destination: str) -> None:
-    """Enrich LLM-generated places with real Google Places data, best-effort.
+    """Enrich LLM-generated places with real geocoding data, best-effort.
 
     The LLM proposes place names (planning intent); this resolves them to real
-    coordinates/ratings/addresses. Any failure falls back to the LLM values so
-    generation never crashes because an external API is unavailable.
+    coordinates/addresses via Nominatim (OpenStreetMap). Any failure falls back
+    to the LLM values so generation never crashes because an external API is
+    unavailable.
     """
     cache: Dict[str, object] = {}
 
@@ -124,8 +125,8 @@ async def _enrich_with_places(itinerary_dict: Dict, destination: str) -> None:
                     restaurant["rating"] = real["rating"]
                 if real.get("address"):
                     restaurant["address"] = real["address"]
-                if real.get("google_maps_url"):
-                    restaurant["google_maps_url"] = real["google_maps_url"]
+                if real.get("maps_url"):
+                    restaurant["maps_url"] = real["maps_url"]
 
 
 @router.post("/save")

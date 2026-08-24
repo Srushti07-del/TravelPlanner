@@ -1,145 +1,106 @@
 @import "tailwindcss";
-@import "tw-animate-css";
 
+/* Leaflet marker number tooltip */
+.leaflet-marker-number {
+  background: #21463c !important;
+  border: 2px solid white !important;
+  border-radius: 50% !important;
+  color: white !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  width: 24px !important;
+  height: 24px !important;
+  line-height: 20px !important;
+  text-align: center !important;
+  padding: 0 !important;
+  margin-left: -12px !important;
+  margin-top: -12px !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3) !important;
+}
+.leaflet-marker-number::before {
+  display: none !important;
+}
+
+/* ---- Global design tokens ---- */
 :root {
-  --background: #f5f4ef;
-  --foreground: #18201d;
-  --card: #fbfaf6;
-  --card-foreground: #18201d;
-  --popover: #fbfaf6;
-  --popover-foreground: #18201d;
-  --primary: #d96d4b;
-  --primary-foreground: #fffaf2;
-  --secondary: #dfe8df;
-  --secondary-foreground: #24483f;
-  --muted: #e8e9e2;
-  --muted-foreground: #68716b;
-  --accent: #b8d0bd;
-  --accent-foreground: #21463c;
-  --border: rgba(35, 58, 50, 0.12);
-  --ring: #d96d4b;
-  --radius: 1.2rem;
-  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --forest: #21463c;
+  --terra: #d96d4b;
+  --sage: #8fae9a;
+  --sand: #f0eee6;
+  --cream: #f5f4ef;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-border: var(--border);
-  --color-ring: var(--ring);
-  --radius-sm: calc(var(--radius) - 0.5rem);
-  --radius-md: calc(var(--radius) - 0.25rem);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 0.35rem);
-  --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-serif: "Playfair Display", Georgia, serif;
-}
-
-* {
-  box-sizing: border-box;
-}
-html {
-  scroll-behavior: smooth;
-}
+/* ---- Base ---- */
 body {
-  margin: 0;
-  min-width: 320px;
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-sans);
-}
-button,
-input {
-  font: inherit;
-}
-button {
-  cursor: pointer;
-}
-::selection {
-  background: #d96d4b;
-  color: white;
+  font-family:
+    "DM Sans",
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .font-display {
-  font-family: var(--font-serif);
-}
-.eyebrow {
-  font-size: 10px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
+  font-family:
+    "Playfair Display",
+    Georgia,
+    serif;
   font-weight: 700;
+  letter-spacing: -0.03em;
 }
-.editorial-grid {
-  background-image:
-    linear-gradient(rgba(31, 55, 47, 0.045) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(31, 55, 47, 0.045) 1px, transparent 1px);
-  background-size: 32px 32px;
-}
+
+/* ---- UI utilities ---- */
 .glass {
-  background: rgba(250, 250, 245, 0.72);
-  border: 1px solid rgba(255, 255, 255, 0.7);
-  box-shadow: 0 18px 50px rgba(28, 54, 43, 0.09);
-  backdrop-filter: blur(18px);
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
 }
+
+.eyebrow {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
 .card-lift {
   transition:
-    transform 0.22s var(--ease-out),
-    box-shadow 0.22s var(--ease-out),
-    border-color 0.22s var(--ease-out);
+    transform 0.25s ease,
+    box-shadow 0.25s ease;
 }
 .card-lift:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 20px 40px rgba(28, 54, 43, 0.12);
-  border-color: rgba(217, 109, 75, 0.28);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 30px rgba(33, 70, 60, 0.08);
 }
+
 .btn-press {
-  transition:
-    transform 0.16s var(--ease-out),
-    box-shadow 0.16s var(--ease-out);
+  transition: transform 0.15s ease;
 }
 .btn-press:active {
   transform: scale(0.97);
 }
+
+/* ---- Entrance animations ---- */
 .fade-up {
-  animation: fade-up 0.7s var(--ease-out) both;
+  opacity: 0;
+  transform: translateY(18px);
+  animation: fadeUp 0.7s ease forwards;
 }
 .fade-up-delay-1 {
-  animation-delay: 0.08s;
+  animation-delay: 0.15s;
 }
 .fade-up-delay-2 {
-  animation-delay: 0.16s;
+  animation-delay: 0.3s;
 }
 .fade-up-delay-3 {
-  animation-delay: 0.24s;
+  animation-delay: 0.45s;
 }
-@keyframes fade-up {
-  from {
-    opacity: 0;
-    transform: translateY(14px);
-  }
+
+@keyframes fadeUp {
   to {
     opacity: 1;
     transform: translateY(0);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
   }
 }

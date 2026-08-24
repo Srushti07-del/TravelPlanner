@@ -204,22 +204,22 @@ function Header({ onPlan }: { onPlan: () => void }) {
 function SearchBar({ onPlan }: { onPlan: (destination: string) => void }) {
   const [destination, setDestination] = useState("");
   return (
-    <div className="glass grid gap-2 rounded-[24px] p-2 text-[#1d332c] sm:grid-cols-[1.4fr_1fr_1fr_auto]">
+    <div className="glass grid gap-2 rounded-3xl p-2 text-[#1d332c] sm:grid-cols-[1.4fr_1fr_1fr_auto]">
       <div className="relative flex items-center gap-3 rounded-2xl bg-white/70 px-4 py-3">
         <MapPin size={17} className="text-[#d96d4b]" />
-          <div className="min-w-0 flex-1">
-            <div className="text-[10px] font-bold uppercase tracking-widest text-[#21463c]">
-              Where to?
-            </div>
-            <Input
-              value={destination}
-              onChange={e => setDestination(e.target.value)}
-              className="h-5 border-0 bg-transparent p-0 text-[#1d332c] text-sm font-semibold shadow-none focus-visible:ring-0"
-              placeholder="A place you dream of"
-            />
+        <div className="min-w-0 flex-1">
+          <div className="text-[10px] font-bold uppercase tracking-widest text-[#21463c]">
+            Where to?
           </div>
+          <Input
+            value={destination}
+            onChange={e => setDestination(e.target.value)}
+            className="h-5 border-0 bg-transparent p-0 text-[#1d332c] text-sm font-semibold shadow-none focus-visible:ring-0"
+            placeholder="A place you dream of"
+          />
+        </div>
         {destination && (
-          <div className="absolute left-12 right-3 top-[68px] z-10 rounded-xl border bg-white p-2 text-xs shadow-xl">
+          <div className="absolute left-12 right-3 top-17 z-10 rounded-xl border bg-white p-2 text-xs shadow-xl">
             <button
               onClick={() => setDestination("Amalfi Coast")}
               className="w-full rounded-lg p-2 text-left hover:bg-[#f0eee6]"
@@ -265,13 +265,13 @@ function SearchBar({ onPlan }: { onPlan: (destination: string) => void }) {
 }
 function DestinationCard({ item }: { item: (typeof destinations)[number] }) {
   return (
-    <article className="card-lift group relative h-[290px] overflow-hidden rounded-[26px] text-white">
+    <article className="card-lift group relative h-72.5 overflow-hidden rounded-[26px] text-white">
       <img
         src={item.image}
         alt={item.name}
         className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-105"
       />
-      <div className="absolute inset-0 bg-gradient-to-t from-[#10211c]/85 via-transparent to-transparent" />
+      <div className="absolute inset-0 bg-linear-to-t from-[#10211c]/85 via-transparent to-transparent" />
       <div className="absolute inset-x-5 bottom-5">
         <div className="mb-2 flex items-center gap-2">
           <Badge className="border-0 bg-white/20 text-white backdrop-blur">
@@ -312,7 +312,7 @@ function Planner({
   });
   const mutation = useMutation({
     mutationFn: generateTrip,
-    onSuccess: data => {
+    onSuccess: (data: Itinerary) => {
       onComplete(data);
     },
     onError: (err: any) => {
@@ -376,7 +376,7 @@ function Planner({
   ];
   if (planning)
     return (
-      <section className="min-h-[600px] bg-[#172c26] px-5 py-28 text-white">
+      <section className="min-h-150 bg-[#172c26] px-5 py-28 text-white">
         <div className="mx-auto max-w-xl text-center">
           <div className="mx-auto mb-8 grid h-20 w-20 place-items-center rounded-full bg-[#d96d4b] shadow-2xl shadow-[#d96d4b]/20">
             <Sparkles className="animate-pulse" size={30} />
@@ -465,46 +465,46 @@ function Planner({
             </div>
           </div>
         </div>
-        <div className="rounded-[32px] bg-[#fbfaf6] p-5 shadow-[0_24px_60px_rgba(31,53,45,.1)] sm:p-8">
+        <div className="rounded-4xl bg-[#fbfaf6] p-5 shadow-[0_24px_60px_rgba(31,53,45,.1)] sm:p-8">
           <div className="mb-5 grid gap-3 sm:grid-cols-3">
             <Input
               value={form.destination}
-              onChange={e => setForm({ ...form, destination: e.target.value })}
+              onChange={(e: any) => setForm({ ...form, destination: e.target.value })}
               placeholder="Destination"
             />
             <Input
               value={form.dates}
-              onChange={e => setForm({ ...form, dates: e.target.value })}
+              onChange={(e: any) => setForm({ ...form, dates: e.target.value })}
               placeholder="Dates"
             />
             <Input
               value={form.budget}
-              onChange={e => setForm({ ...form, budget: e.target.value })}
+              onChange={(e: any) => setForm({ ...form, budget: e.target.value })}
               placeholder="Budget"
             />
             <Input
               value={form.travelers}
-              onChange={e => setForm({ ...form, travelers: e.target.value })}
+              onChange={(e: any) => setForm({ ...form, travelers: e.target.value })}
               placeholder="Travelers"
             />
             <Input
               value={form.stay}
-              onChange={e => setForm({ ...form, stay: e.target.value })}
+              onChange={(e: any) => setForm({ ...form, stay: e.target.value })}
               placeholder="Stay preference"
             />
             <Input
               value={form.transport}
-              onChange={e => setForm({ ...form, transport: e.target.value })}
+              onChange={(e: any) => setForm({ ...form, transport: e.target.value })}
               placeholder="Transport"
             />
             <Input
               value={form.interests}
-              onChange={e => setForm({ ...form, interests: e.target.value })}
+              onChange={(e: any) => setForm({ ...form, interests: e.target.value })}
               placeholder="Interests"
             />
             <Input
               value={form.activities}
-              onChange={e => setForm({ ...form, activities: e.target.value })}
+              onChange={(e: any) => setForm({ ...form, activities: e.target.value })}
               placeholder="Preferred activities"
             />
           </div>
@@ -556,32 +556,33 @@ function MapPanel({
   setSelected: (n: number) => void;
   itineraryData?: Itinerary;
 }) {
+  // Build markers and route from itinerary data or fallback to base itinerary
+  const timeSlots = itineraryData?.days[0]?.time_slots || [];
+  const mapMarkers =
+    timeSlots.length > 0
+      ? timeSlots.map((t: any) => ({
+          lat: t.lat,
+          lng: t.lng,
+          title: t.location_name || t.activity_name,
+        }))
+      : [
+          { lat: 40.6333, lng: 14.6029, title: baseItinerary[0].place },
+          { lat: 40.634, lng: 14.602, title: baseItinerary[1].place },
+          { lat: 40.635, lng: 14.61, title: baseItinerary[2].place },
+          { lat: 40.65, lng: 14.62, title: baseItinerary[3].place },
+        ];
+
+  const route = mapMarkers.map((m: any) => ({ lat: m.lat, lng: m.lng }));
+
   return (
-    <div className="relative min-h-[370px] overflow-hidden rounded-[28px] bg-[#dce6dc] p-2">
+    <div className="relative min-h-92.5 overflow-hidden rounded-[28px] bg-[#dce6dc] p-2">
       <div className="absolute inset-2 overflow-hidden rounded-[22px]">
         <MapView
-          className="h-full min-h-[350px]"
+          className="h-full min-h-87.5"
           initialCenter={{ lat: 40.6333, lng: 14.6029 }}
           initialZoom={12}
-          onMapReady={map => {
-            const timeSlots = itineraryData?.days[0]?.time_slots || [];
-            const route =
-              timeSlots.length > 0
-                ? timeSlots.map((t: any) => ({ lat: t.lat, lng: t.lng }))
-                : [
-                    { lat: 40.6333, lng: 14.6029 },
-                    { lat: 40.634, lng: 14.602 },
-                    { lat: 40.635, lng: 14.61 },
-                    { lat: 40.65, lng: 14.62 },
-                  ];
-            route.forEach((position: any, i: number) => {
-              new google.maps.marker.AdvancedMarkerElement({
-                map,
-                position,
-                title: timeSlots[i]?.location_name || baseItinerary[i].place,
-              });
-            });
-          }}
+          markers={mapMarkers}
+          route={route}
         />
       </div>
       <div className="absolute inset-5 z-10 flex items-start justify-between pointer-events-none">
@@ -591,11 +592,11 @@ function MapPanel({
             The coast, connected
           </h3>
         </div>
-        <Badge className="bg-white/85 text-[#527060]">4 stops</Badge>
+        <Badge className="bg-white/85 text-[#527060]">{mapMarkers.length} stops</Badge>
       </div>
       {(itineraryData?.days[0]?.time_slots || baseItinerary).map((item: any, i: number) => (
         <button
-          key={item.title}
+          key={item.title || item.activity_name || i}
           onClick={() => setSelected(i)}
           className={`absolute bottom-5 z-20 grid h-9 w-9 place-items-center rounded-full border-4 border-white text-xs font-bold shadow-lg transition ${selected === i ? "bg-[#d96d4b] text-white" : "bg-[#21463c] text-white hover:scale-110"}`}
           style={{ left: `${20 + i * 20}%` }}
@@ -606,12 +607,12 @@ function MapPanel({
       <div className="absolute bottom-5 left-[42%] right-5 z-20 rounded-2xl bg-white/85 p-3 backdrop-blur">
         <p className="text-xs font-bold text-[#21463c]">
           {itineraryData?.days[0]?.time_slots?.[selected]?.location_name ||
-            baseItinerary[selected].place}
+            baseItinerary[selected]?.place}
         </p>
         <p className="mt-1 text-xs text-[#718077]">
           {(itineraryData?.days[0]?.time_slots?.[selected] as any)?.title ||
             itineraryData?.days[0]?.time_slots?.[selected]?.activity_name ||
-            baseItinerary[selected].title}{" "}
+            baseItinerary[selected]?.title}{" "}
           · tap a stop to explore
         </p>
       </div>
@@ -734,7 +735,7 @@ function Dashboard({ itineraryData }: { itineraryData: Itinerary }) {
             <div className="mt-2 flex gap-2">
               <Input
                 value={editTitle}
-                onChange={e => setEditTitle(e.target.value)}
+                onChange={(e: any) => setEditTitle(e.target.value)}
               />
               <Button
                 onClick={() => {
@@ -769,8 +770,8 @@ function Dashboard({ itineraryData }: { itineraryData: Itinerary }) {
               <div className="mt-8 rounded-2xl bg-white/10 p-2">
                 <Input
                   value={assistant}
-                  onChange={e => setAssistant(e.target.value)}
-                  onKeyDown={e => e.key === "Enter" && askAssistant()}
+                  onChange={(e: any) => setAssistant(e.target.value)}
+                  onKeyDown={(e: any) => e.key === "Enter" && askAssistant()}
                   placeholder="What should I do if it rains tomorrow?"
                   className="border-0 bg-transparent text-white placeholder:text-white/45 focus-visible:ring-0"
                 />
@@ -842,7 +843,7 @@ function Dashboard({ itineraryData }: { itineraryData: Itinerary }) {
         ) : (
           <>
             <div className="grid gap-5 lg:grid-cols-[1.05fr_1.4fr_.72fr]">
-              <div className="relative min-h-[390px] overflow-hidden rounded-[28px] bg-[#24483f] text-white">
+              <div className="relative min-h-97.5 overflow-hidden rounded-[28px] bg-[#24483f] text-white">
                 <div
                   className="absolute inset-0 opacity-50"
                   style={{
@@ -851,7 +852,7 @@ function Dashboard({ itineraryData }: { itineraryData: Itinerary }) {
                     backgroundPosition: "center",
                   }}
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#132a24] via-[#132a24]/25 to-transparent" />
+                <div className="absolute inset-0 bg-linear-to-t from-[#132a24] via-[#132a24]/25 to-transparent" />
                 <div className="relative flex h-full flex-col justify-between p-6">
                   <div className="flex items-center justify-between">
                     <Badge className="border border-white/20 bg-white/15 text-white">
@@ -1032,7 +1033,7 @@ function Dashboard({ itineraryData }: { itineraryData: Itinerary }) {
               </div>
             </div>
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
-              <div className="rounded-[24px] bg-[#fffaf4] p-5">
+              <div className="rounded-3xl bg-[#fffaf4] p-5">
                 <p className="eyebrow text-[#a86b55]">Stay</p>
                 <p className="mt-2 text-lg font-semibold text-[#713d2f]">
                   Casa Angelina
@@ -1041,7 +1042,7 @@ function Dashboard({ itineraryData }: { itineraryData: Itinerary }) {
                   Sea view · 4 nights · check-in Sep 14
                 </p>
               </div>
-              <div className="rounded-[24px] bg-[#e8efe5] p-5">
+              <div className="rounded-3xl bg-[#e8efe5] p-5">
                 <p className="eyebrow text-[#789481]">Transport</p>
                 <p className="mt-2 text-lg font-semibold text-[#21463c]">
                   Walk + local ferry
@@ -1243,15 +1244,15 @@ export default function Home() {
     <div className="min-h-screen overflow-hidden bg-[#f5f4ef]">
       {view === "home" && (
         <>
-          <section className="relative min-h-[720px] overflow-hidden bg-[#18332b] text-white">
+          <section className="relative min-h-180 overflow-hidden bg-[#18332b] text-white">
             <div
               className="absolute inset-0 bg-cover bg-center"
               style={{ backgroundImage: `url(${IMG.hero})` }}
             />
-            <div className="absolute inset-0 bg-gradient-to-r from-[#102c25]/90 via-[#17372e]/50 to-[#17372e]/25" />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#102c25]/60 via-transparent to-transparent" />
+            <div className="absolute inset-0 bg-linear-to-r from-[#102c25]/90 via-[#17372e]/50 to-[#17372e]/25" />
+            <div className="absolute inset-0 bg-linear-to-t from-[#102c25]/60 via-transparent to-transparent" />
             <Header onPlan={() => jumpToPlanner()} />
-            <div className="relative mx-auto flex min-h-[720px] max-w-7xl items-end px-5 pb-14 pt-36 sm:px-10 sm:pb-20">
+            <div className="relative mx-auto flex min-h-180 max-w-7xl items-end px-5 pb-14 pt-36 sm:px-10 sm:pb-20">
               <div className="max-w-3xl">
                 <div className="fade-up flex items-center gap-3 text-sm text-white/75">
                   <span className="h-px w-10 bg-[#e7b59a]" />

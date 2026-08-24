@@ -1,181 +1,180 @@
-/**
- * GOOGLE MAPS FRONTEND INTEGRATION - ESSENTIAL GUIDE
- *
- * USAGE FROM PARENT COMPONENT:
- * ======
- *
- * const mapRef = useRef<google.maps.Map | null>(null);
- *
- * <MapView
- *   initialCenter={{ lat: 40.7128, lng: -74.0060 }}
- *   initialZoom={15}
- *   onMapReady={(map) => {
- *     mapRef.current = map; // Store to control map from parent anytime, google map itself is in charge of the re-rendering, not react state.
- * </MapView>
- *
- * ======
- * Available Libraries and Core Features:
- * -------------------------------
- * 📍 MARKER (from `marker` library)
- * - Attaches to map using { map, position }
- * new google.maps.marker.AdvancedMarkerElement({
- *   map,
- *   position: { lat: 37.7749, lng: -122.4194 },
- *   title: "San Francisco",
- * });
- *
- * -------------------------------
- * 🏢 PLACES (from `places` library)
- * - Does not attach directly to map; use data with your map manually.
- * const place = new google.maps.places.Place({ id: PLACE_ID });
- * await place.fetchFields({ fields: ["displayName", "location"] });
- * map.setCenter(place.location);
- * new google.maps.marker.AdvancedMarkerElement({ map, position: place.location });
- *
- * -------------------------------
- * 🧭 GEOCODER (from `geocoding` library)
- * - Standalone service; manually apply results to map.
- * const geocoder = new google.maps.Geocoder();
- * geocoder.geocode({ address: "New York" }, (results, status) => {
- *   if (status === "OK" && results[0]) {
- *     map.setCenter(results[0].geometry.location);
- *     new google.maps.marker.AdvancedMarkerElement({
- *       map,
- *       position: results[0].geometry.location,
- *     });
- *   }
- * });
- *
- * -------------------------------
- * 📐 GEOMETRY (from `geometry` library)
- * - Pure utility functions; not attached to map.
- * const dist = google.maps.geometry.spherical.computeDistanceBetween(p1, p2);
- *
- * -------------------------------
- * 🛣️ ROUTES (from `routes` library)
- * - Combines DirectionsService (standalone) + DirectionsRenderer (map-attached)
- * const directionsService = new google.maps.DirectionsService();
- * const directionsRenderer = new google.maps.DirectionsRenderer({ map });
- * directionsService.route(
- *   { origin, destination, travelMode: "DRIVING" },
- *   (res, status) => status === "OK" && directionsRenderer.setDirections(res)
- * );
- *
- * -------------------------------
- * 🌦️ MAP LAYERS (attach directly to map)
- * - new google.maps.TrafficLayer().setMap(map);
- * - new google.maps.TransitLayer().setMap(map);
- * - new google.maps.BicyclingLayer().setMap(map);
- *
- * -------------------------------
- * ✅ SUMMARY
- * - “map-attached” → AdvancedMarkerElement, DirectionsRenderer, Layers.
- * - “standalone” → Geocoder, DirectionsService, DistanceMatrixService, ElevationService.
- * - “data-only” → Place, Geometry utilities.
- */
-
-/// <reference types="@types/google.maps" />
-
 import { useEffect, useRef } from "react";
-import { cn } from "@/lib/utils";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 
-declare global {
-  interface Window {
-    google?: typeof google;
-  }
-}
+// Fix Leaflet's default marker icon path issue in bundled environments.
+// Webpack/Vite break the built-in icon URL detection, so we set them explicitly.
+import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
+import markerIcon from "leaflet/dist/images/marker-icon.png";
+import markerShadow from "leaflet/dist/images/marker-shadow.png";
 
-const API_KEY = import.meta.env.VITE_FRONTEND_FORGE_API_KEY;
-const FORGE_BASE_URL =
-  import.meta.env.VITE_FRONTEND_FORGE_API_URL ||
-  "https://forge.butterfly-effect.dev";
-const MAPS_PROXY_URL = `${FORGE_BASE_URL}/v1/maps/proxy`;
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: markerIcon2x,
+  iconUrl: markerIcon,
+  shadowUrl: markerShadow,
+});
 
-let mapScriptPromise: Promise<void> | null = null;
-
-function loadMapScript() {
-  if (window.google?.maps) return Promise.resolve();
-  if (mapScriptPromise) return mapScriptPromise;
-
-  mapScriptPromise = new Promise((resolve, reject) => {
-    const script = document.createElement("script");
-    script.src = `${MAPS_PROXY_URL}/maps/api/js?key=${API_KEY}&v=weekly&libraries=marker,places,geocoding,geometry`;
-    script.async = true;
-    script.crossOrigin = "anonymous";
-    script.onload = () => {
-      resolve();
-      script.remove(); // Clean up immediately
-    };
-    script.onerror = () => {
-      mapScriptPromise = null;
-      script.remove();
-      reject(new Error("Google Maps script failed to load"));
-    };
-    document.head.appendChild(script);
-  });
-
-  return mapScriptPromise;
+interface MapMarker {
+  lat: number;
+  lng: number;
+  title?: string;
+  popupContent?: string;
 }
 
 interface MapViewProps {
   className?: string;
-  initialCenter?: google.maps.LatLngLiteral;
+  initialCenter?: { lat: number; lng: number };
   initialZoom?: number;
-  onMapReady?: (map: google.maps.Map) => void;
+  markers?: MapMarker[];
+  route?: { lat: number; lng: number }[];
+  onMapReady?: (map: L.Map) => void;
 }
 
+/**
+ * Interactive map component using Leaflet + OpenStreetMap tiles.
+ * Replaces the former Google Maps component — no API key required.
+ *
+ * Features:
+ * - OSM tile layer (free, no billing)
+ * - Markers with popups
+ * - Route polyline visualization
+ * - Auto-fit bounds to markers
+ * - Handles missing/invalid coordinates gracefully
+ */
 export function MapView({
-  className,
-  initialCenter = { lat: 37.7749, lng: -122.4194 },
-  initialZoom = 12,
+  className = "",
+  initialCenter = { lat: 20.5937, lng: 78.9629 }, // Default: India center
+  initialZoom = 5,
+  markers = [],
+  route = [],
   onMapReady,
 }: MapViewProps) {
-  const mapContainer = useRef<HTMLDivElement>(null);
-  const map = useRef<google.maps.Map | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<L.Map | null>(null);
+  const markersLayerRef = useRef<L.LayerGroup | null>(null);
+  const routeLayerRef = useRef<L.Polyline | null>(null);
 
+  // Initialize the map once
   useEffect(() => {
-    let cancelled = false;
+    if (!containerRef.current || mapRef.current) return;
 
-    const init = async () => {
-      try {
-        await loadMapScript();
-        if (
-          cancelled ||
-          !mapContainer.current ||
-          map.current ||
-          !window.google?.maps
-        ) {
-          return;
-        }
+    const map = L.map(containerRef.current, {
+      center: [initialCenter.lat, initialCenter.lng],
+      zoom: initialZoom,
+      zoomControl: true,
+      attributionControl: true,
+    });
 
-        const initializedMap = new window.google.maps.Map(
-          mapContainer.current,
-          {
-            zoom: initialZoom,
-            center: initialCenter,
-            mapTypeControl: true,
-            fullscreenControl: true,
-            zoomControl: true,
-            streetViewControl: true,
-            mapId: "DEMO_MAP_ID",
-          }
-        );
+    // OpenStreetMap tile layer — free, no API key needed
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      maxZoom: 19,
+    }).addTo(map);
 
-        map.current = initializedMap;
-        onMapReady?.(initializedMap);
-      } catch {
-        // The page remains usable when the map service is unavailable.
-      }
-    };
+    mapRef.current = map;
+    markersLayerRef.current = L.layerGroup().addTo(map);
 
-    void init();
+    if (onMapReady) {
+      onMapReady(map);
+    }
 
+    // Cleanup on unmount
     return () => {
-      cancelled = true;
+      map.remove();
+      mapRef.current = null;
+      markersLayerRef.current = null;
+      routeLayerRef.current = null;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Update markers when they change
+  useEffect(() => {
+    const map = mapRef.current;
+    const layer = markersLayerRef.current;
+    if (!map || !layer) return;
+
+    layer.clearLayers();
+
+    const validMarkers = markers.filter(
+      (m) =>
+        m.lat != null &&
+        m.lng != null &&
+        isFinite(m.lat) &&
+        isFinite(m.lng) &&
+        !(m.lat === 0 && m.lng === 0) &&
+        Math.abs(m.lat) <= 90 &&
+        Math.abs(m.lng) <= 180
+    );
+
+    if (validMarkers.length === 0) return;
+
+    validMarkers.forEach((m, idx) => {
+      const marker = L.marker([m.lat, m.lng]).addTo(layer);
+      const label = m.title || m.popupContent || `Stop ${idx + 1}`;
+      marker.bindPopup(`<strong>${label}</strong>`);
+      marker.bindTooltip(`${idx + 1}`, {
+        permanent: true,
+        direction: "center",
+        className: "leaflet-marker-number",
+      });
+    });
+
+    // Fit the map to show all markers
+    const bounds = L.latLngBounds(
+      validMarkers.map((m) => [m.lat, m.lng] as [number, number])
+    );
+    try {
+      map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
+    } catch {
+      // fitBounds can fail if bounds are invalid
+    }
+  }, [markers]);
+
+  // Update route polyline when it changes
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    // Remove old route
+    if (routeLayerRef.current) {
+      routeLayerRef.current.remove();
+      routeLayerRef.current = null;
+    }
+
+    const validRoute = route.filter(
+      (p) =>
+        p.lat != null &&
+        p.lng != null &&
+        isFinite(p.lat) &&
+        isFinite(p.lng) &&
+        !(p.lat === 0 && p.lng === 0)
+    );
+
+    if (validRoute.length < 2) return;
+
+    const polyline = L.polyline(
+      validRoute.map((p) => [p.lat, p.lng] as [number, number]),
+      {
+        color: "#d96d4b",
+        weight: 3,
+        opacity: 0.7,
+        dashArray: "8, 6",
+      }
+    ).addTo(map);
+
+    routeLayerRef.current = polyline;
+  }, [route]);
+
   return (
-    <div ref={mapContainer} className={cn("w-full h-[500px]", className)} />
+    <div
+      ref={containerRef}
+      className={className}
+      style={{ minHeight: "300px", width: "100%", zIndex: 0 }}
+    />
   );
 }
+
+export default MapView;
