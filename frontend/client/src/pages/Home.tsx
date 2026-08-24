@@ -207,17 +207,17 @@ function SearchBar({ onPlan }: { onPlan: (destination: string) => void }) {
     <div className="glass grid gap-2 rounded-[24px] p-2 text-[#1d332c] sm:grid-cols-[1.4fr_1fr_1fr_auto]">
       <div className="relative flex items-center gap-3 rounded-2xl bg-white/70 px-4 py-3">
         <MapPin size={17} className="text-[#d96d4b]" />
-        <div className="min-w-0 flex-1">
-          <div className="text-[10px] font-bold uppercase tracking-widest text-[#87918a]">
-            Where to?
+          <div className="min-w-0 flex-1">
+            <div className="text-[10px] font-bold uppercase tracking-widest text-[#21463c]">
+              Where to?
+            </div>
+            <Input
+              value={destination}
+              onChange={e => setDestination(e.target.value)}
+              className="h-5 border-0 bg-transparent p-0 text-[#1d332c] text-sm font-semibold shadow-none focus-visible:ring-0"
+              placeholder="A place you dream of"
+            />
           </div>
-          <Input
-            value={destination}
-            onChange={e => setDestination(e.target.value)}
-            className="h-5 border-0 bg-transparent p-0 text-sm font-semibold shadow-none focus-visible:ring-0"
-            placeholder="A place you dream of"
-          />
-        </div>
         {destination && (
           <div className="absolute left-12 right-3 top-[68px] z-10 rounded-xl border bg-white p-2 text-xs shadow-xl">
             <button
