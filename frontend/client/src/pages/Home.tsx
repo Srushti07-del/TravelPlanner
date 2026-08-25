@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -217,6 +217,21 @@ function SearchBar({
   const [destination, setDestination] = useState("");
   const [datesOpen, setDatesOpen] = useState(false);
   const [styleOpen, setStyleOpen] = useState(false);
+  const datesRef = useRef<HTMLDivElement>(null);
+  const styleRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (datesRef.current && !datesRef.current.contains(event.target as Node)) {
+        setDatesOpen(false);
+      }
+      if (styleRef.current && !styleRef.current.contains(event.target as Node)) {
+        setStyleOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
   const [selectingEnd, setSelectingEnd] = useState(false);
@@ -348,7 +363,7 @@ function SearchBar({
           <ChevronDown size={14} className="ml-auto text-[#87918a]" />
         </button>
         {datesOpen && (
-          <div className="absolute left-0 top-full z-20 mt-2 w-72 rounded-2xl border border-[#dfe5dc] bg-white p-4 shadow-xl">
+          <div ref={datesRef} className="absolute left-0 top-full z-50 mt-2 w-72 rounded-2xl border border-[#dfe5dc] bg-white p-4 shadow-xl">
             <div className="mb-2 text-center text-[10px] font-bold uppercase tracking-widest text-[#d96d4b]">
               {selectingEnd ? "To" : "From"}
             </div>
@@ -451,7 +466,7 @@ function SearchBar({
           <ChevronDown size={14} className="ml-auto text-[#87918a]" />
         </button>
         {styleOpen && (
-          <div className="absolute left-0 top-full z-20 mt-2 w-64 rounded-2xl border border-[#dfe5dc] bg-white p-2 shadow-xl">
+          <div ref={styleRef} className="absolute left-0 top-full z-50 mt-2 w-64 rounded-2xl border border-[#dfe5dc] bg-white p-2 shadow-xl">
             {travelStyles.map(option => (
               <button
                 key={option}
