@@ -201,8 +201,102 @@ function Header({ onPlan }: { onPlan: () => void }) {
   );
 }
 
-function SearchBar({ onPlan }: { onPlan: (destination: string) => void }) {
+function SearchBar({
+  onPlan,
+  dates,
+  onDatesChange,
+  style,
+  onStyleChange,
+}: {
+  onPlan: (destination: string) => void;
+  dates: string;
+  onDatesChange: (dates: string) => void;
+  style: string;
+  onStyleChange: (style: string) => void;
+}) {
   const [destination, setDestination] = useState("");
+  const [datesOpen, setDatesOpen] = useState(false);
+  const [styleOpen, setStyleOpen] = useState(false);
+  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [endDate, setEndDate] = useState<Date | null>(null);
+  const [selectingEnd, setSelectingEnd] = useState(false);
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+
+  const formatDate = (date: Date) =>
+    date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
+  const getDaysInMonth = (date: Date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    return { firstDay, daysInMonth };
+  };
+
+  const handleDayClick = (day: number) => {
+    const clicked = new Date(
+      currentMonth.getFullYear(),
+      currentMonth.getMonth(),
+      day
+    );
+    if (!selectingEnd) {
+      setStartDate(clicked);
+      setEndDate(null);
+      setSelectingEnd(true);
+    } else {
+      if (clicked < startDate!) {
+        setStartDate(clicked);
+        setEndDate(null);
+      } else {
+        setEndDate(clicked);
+        setSelectingEnd(false);
+        onDatesChange(
+          `${formatDate(startDate!)} – ${formatDate(clicked)}`
+        );
+        setDatesOpen(false);
+      }
+    }
+  };
+
+  const isInRange = (day: number) => {
+    if (!startDate || !endDate) return false;
+    const d = new Date(
+      currentMonth.getFullYear(),
+      currentMonth.getMonth(),
+      day
+    );
+    return d > startDate && d < endDate;
+  };
+
+  const isSelected = (day: number) => {
+    const d = new Date(
+      currentMonth.getFullYear(),
+      currentMonth.getMonth(),
+      day
+    );
+    return (
+      (startDate && d.getTime() === startDate.getTime()) ||
+      (endDate && d.getTime() === endDate.getTime())
+    );
+  };
+
+  const travelStyles = [
+    "Slow & peaceful",
+    "Adventure",
+    "Romantic",
+    "Food & culture",
+    "Nature",
+    "Luxury",
+    "Budget",
+  ];
+
+  const datesLabel = startDate && endDate
+    ? `${formatDate(startDate)} – ${formatDate(endDate)}`
+    : startDate
+      ? `${formatDate(startDate)} – ...`
+      : dates || "Sep 14 – 21";
+  const styleLabel = style || "Curious & calm";
+
   return (
     <div className="glass grid gap-2 rounded-3xl p-2 text-[#1d332c] sm:grid-cols-[1.4fr_1fr_1fr_auto]">
       <div className="relative flex items-center gap-3 rounded-2xl bg-white/70 px-4 py-3">
@@ -219,7 +313,7 @@ function SearchBar({ onPlan }: { onPlan: (destination: string) => void }) {
           />
         </div>
         {destination && (
-          <div className="absolute left-12 right-3 top-17 z-10 rounded-xl border bg-white p-2 text-xs shadow-xl">
+          <div className="absolute left-12 right-3 top-[68px] z-10 rounded-xl border bg-white p-2 text-xs shadow-xl">
             <button
               onClick={() => setDestination("Amalfi Coast")}
               className="w-full rounded-lg p-2 text-left hover:bg-[#f0eee6]"
@@ -235,24 +329,159 @@ function SearchBar({ onPlan }: { onPlan: (destination: string) => void }) {
           </div>
         )}
       </div>
-      <div className="flex items-center gap-3 rounded-2xl px-4 py-3">
-        <CalendarDays size={17} className="text-[#789a87]" />
-        <div>
-          <div className="text-[10px] font-bold uppercase tracking-widest text-[#87918a]">
-            When
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => {
+            setDatesOpen(!datesOpen);
+            setStyleOpen(false);
+          }}
+          className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left hover:bg-white/40"
+        >
+          <CalendarDays size={17} className="text-[#789a87]" />
+          <div>
+            <div className="text-[10px] font-bold uppercase tracking-widest text-[#21463c]">
+              When
+            </div>
+            <div className="text-sm font-semibold">{datesLabel}</div>
           </div>
-          <div className="text-sm font-semibold">Sep 14 – 21</div>
-        </div>
-        <ChevronDown size={14} className="ml-auto text-[#87918a]" />
+          <ChevronDown size={14} className="ml-auto text-[#87918a]" />
+        </button>
+        {datesOpen && (
+          <div className="absolute left-0 top-full z-20 mt-2 w-72 rounded-2xl border border-[#dfe5dc] bg-white p-4 shadow-xl">
+            <div className="mb-2 text-center text-[10px] font-bold uppercase tracking-widest text-[#d96d4b]">
+              {selectingEnd ? "To" : "From"}
+            </div>
+            <div className="mb-3 flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() =>
+                  setCurrentMonth(
+                    new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1)
+                  )
+                }
+                className="rounded-lg p-1 hover:bg-[#f0eee6]"
+              >
+                ‹
+              </button>
+              <span className="text-sm font-semibold text-[#21463c]">
+                {currentMonth.toLocaleDateString("en-US", {
+                  month: "long",
+                  year: "numeric",
+                })}
+              </span>
+              <button
+                type="button"
+                onClick={() =>
+                  setCurrentMonth(
+                    new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1)
+                  )
+                }
+                className="rounded-lg p-1 hover:bg-[#f0eee6]"
+              >
+                ›
+              </button>
+            </div>
+            <div className="mb-2 grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-[#87918a]">
+              {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map(d => (
+                <div key={d}>{d}</div>
+              ))}
+            </div>
+            <div className="grid grid-cols-7 gap-1">
+              {(() => {
+                const { firstDay, daysInMonth } = getDaysInMonth(currentMonth);
+                const cells = [];
+                for (let i = 0; i < firstDay; i++) cells.push(<div key={`e${i}`} />);
+                for (let day = 1; day <= daysInMonth; day++) {
+                  const selected = isSelected(day);
+                  const inRange = isInRange(day);
+                  cells.push(
+                    <button
+                      key={day}
+                      type="button"
+                      onClick={() => handleDayClick(day)}
+                      className={`h-8 w-8 rounded-full text-xs font-semibold transition ${
+                        selected
+                          ? "bg-[#d96d4b] text-white"
+                          : inRange
+                            ? "bg-[#f0eee6] text-[#21463c]"
+                            : "text-[#21463c] hover:bg-[#f0eee6]"
+                      }`}
+                    >
+                      {day}
+                    </button>
+                  );
+                }
+                return cells;
+              })()}
+            </div>
+            {(startDate || endDate) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setStartDate(null);
+                  setEndDate(null);
+                  setSelectingEnd(false);
+                  onDatesChange("");
+                }}
+                className="mt-3 w-full rounded-lg border border-[#dfe5dc] py-2 text-xs font-semibold text-[#87918a] hover:bg-[#f0eee6]"
+              >
+                Clear dates
+              </button>
+            )}
+          </div>
+        )}
       </div>
-      <div className="flex items-center gap-3 rounded-2xl px-4 py-3">
-        <Wallet size={17} className="text-[#b18b5c]" />
-        <div>
-          <div className="text-[10px] font-bold uppercase tracking-widest text-[#87918a]">
-            Your style
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => {
+            setStyleOpen(!styleOpen);
+            setDatesOpen(false);
+          }}
+          className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left hover:bg-white/40"
+        >
+          <Wallet size={17} className="text-[#b18b5c]" />
+          <div>
+            <div className="text-[10px] font-bold uppercase tracking-widest text-[#21463c]">
+              Your style
+            </div>
+            <div className="text-sm font-semibold">{styleLabel}</div>
           </div>
-          <div className="text-sm font-semibold">Curious & calm</div>
-        </div>
+          <ChevronDown size={14} className="ml-auto text-[#87918a]" />
+        </button>
+        {styleOpen && (
+          <div className="absolute left-0 top-full z-20 mt-2 w-64 rounded-2xl border border-[#dfe5dc] bg-white p-2 shadow-xl">
+            {travelStyles.map(option => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => {
+                  onStyleChange(option);
+                  setStyleOpen(false);
+                }}
+                className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition ${
+                  style === option
+                    ? "bg-[#f0eee6] font-semibold text-[#21463c]"
+                    : "text-[#21463c] hover:bg-[#f0eee6]"
+                }`}
+              >
+                <span
+                  className={`h-4 w-4 rounded-full border-2 flex items-center justify-center ${
+                    style === option
+                      ? "border-[#d96d4b]"
+                      : "border-[#dfe5dc]"
+                  }`}
+                >
+                  {style === option && (
+                    <span className="h-2 w-2 rounded-full bg-[#d96d4b]" />
+                  )}
+                </span>
+                {option}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
       <Button
         onClick={() => onPlan(destination || "Amalfi Coast")}
@@ -294,18 +523,22 @@ function DestinationCard({ item }: { item: (typeof destinations)[number] }) {
 function Planner({
   onComplete,
   destination,
+  initialDates,
+  initialStyle,
 }: {
   onComplete: (data: Itinerary) => void;
   destination: string;
+  initialDates?: string;
+  initialStyle?: string;
 }) {
   const [step, setStep] = useState(0);
   const [planning, setPlanning] = useState(false);
   const [form, setForm] = useState({
     destination,
-    dates: "Sep 14 – 21",
+    dates: initialDates || "Sep 14 – 21",
     budget: "$3,000 – $4,000",
     travelers: "2 travelers",
-    stay: "Boutique stay",
+    stay: initialStyle || "Boutique stay",
     transport: "Walk + local rail",
     interests: "Sea swims, long lunches",
     activities: "Viewpoints, local tables",
@@ -1218,8 +1451,12 @@ export default function Home() {
   const [view, setView] = useState<"home" | "planner" | "dashboard">("home");
   const [destination, setDestination] = useState("Amalfi Coast");
   const [itineraryData, setItineraryData] = useState<Itinerary | null>(null);
-  const jumpToPlanner = (place?: string) => {
+  const [selectedDates, setSelectedDates] = useState("");
+  const [selectedStyle, setSelectedStyle] = useState("");
+  const jumpToPlanner = (place?: string, dates?: string, style?: string) => {
     if (place) setDestination(place);
+    if (dates) setSelectedDates(dates);
+    if (style) setSelectedStyle(style);
     setView("planner");
     setTimeout(
       () =>
@@ -1244,7 +1481,7 @@ export default function Home() {
     <div className="min-h-screen overflow-hidden bg-[#f5f4ef]">
       {view === "home" && (
         <>
-          <section className="relative min-h-180 overflow-hidden bg-[#18332b] text-white">
+          <section className="relative min-h-180 bg-[#18332b] text-white">
             <div
               className="absolute inset-0 bg-cover bg-center"
               style={{ backgroundImage: `url(${IMG.hero})` }}
@@ -1267,7 +1504,13 @@ export default function Home() {
                   about for years.
                 </p>
                 <div className="fade-up fade-up-delay-3 mt-9 max-w-4xl">
-                  <SearchBar onPlan={place => jumpToPlanner(place)} />
+                  <SearchBar
+                    onPlan={(place) => jumpToPlanner(place)}
+                    dates={selectedDates}
+                    onDatesChange={setSelectedDates}
+                    style={selectedStyle}
+                    onStyleChange={setSelectedStyle}
+                  />
                 </div>
               </div>
             </div>
@@ -1277,7 +1520,7 @@ export default function Home() {
             </div>
           </section>
           <Explore />
-          <Planner destination={destination} onComplete={showDashboard} />
+          <Planner destination={destination} onComplete={showDashboard} initialDates={selectedDates} initialStyle={selectedStyle} />
         </>
       )}
       {view === "planner" && (
@@ -1290,7 +1533,7 @@ export default function Home() {
               <Compass size={18} /> TravelPlanner
             </button>
           </div>
-          <Planner destination={destination} onComplete={showDashboard} />
+          <Planner destination={destination} onComplete={showDashboard} initialDates={selectedDates} initialStyle={selectedStyle} />
         </>
       )}
       {view === "dashboard" && (
