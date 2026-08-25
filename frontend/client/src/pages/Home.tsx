@@ -1504,7 +1504,7 @@ export default function Home() {
             <div className="absolute inset-0 bg-linear-to-r from-[#102c25]/90 via-[#17372e]/50 to-[#17372e]/25" />
             <div className="absolute inset-0 bg-linear-to-t from-[#102c25]/60 via-transparent to-transparent" />
             <Header onPlan={() => jumpToPlanner()} />
-            <div className="relative mx-auto flex min-h-180 max-w-7xl items-end px-5 pb-14 pt-36 sm:px-10 sm:pb-20">
+            <div className="relative mx-auto flex min-h-180 max-w-7xl items-end px-5 pb-32 pt-36 sm:px-10 sm:pb-40">
               <div className="max-w-3xl">
                 <div className="fade-up flex items-center gap-3 text-sm text-white/75">
                   <span className="h-px w-10 bg-[#e7b59a]" />
