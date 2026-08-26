@@ -14,7 +14,7 @@ import { startLogin } from "@/const";
 import { MapView } from "@/components/Map";
 import { WorkspaceExtras } from "@/components/WorkspaceExtras";
 import { useMutation } from "@tanstack/react-query";
-import { generateTrip, Itinerary, TripRequest } from "@/lib/api";
+import { generateTrip, Itinerary, TripRequest, getDestinationImage } from "@/lib/api";
 import {
   ArrowRight,
   CalendarDays,
@@ -508,10 +508,22 @@ function SearchBar({
   );
 }
 function DestinationCard({ item }: { item: (typeof destinations)[number] }) {
+  const [image, setImage] = useState(item.image);
+
+  useEffect(() => {
+    if (item.image.startsWith("/manus-storage")) {
+      getDestinationImage(item.name)
+        .then((res) => {
+          if (res.url) setImage(res.url);
+        })
+        .catch(console.error);
+    }
+  }, [item.name, item.image]);
+
   return (
     <article className="card-lift group relative h-72.5 overflow-hidden rounded-[26px] text-white">
       <img
-        src={item.image}
+        src={image}
         alt={item.name}
         className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-105"
       />

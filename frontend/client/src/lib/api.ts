@@ -122,3 +122,7 @@ export async function generateTrip(request: TripRequest): Promise<Itinerary> {
     body: JSON.stringify(request),
   });
 }
+
+export async function getDestinationImage(query: string): Promise<{ url: string }> {
+  return fetchApi<{ url: string }>(`/images?query=${encodeURIComponent(query)}`);
+}
