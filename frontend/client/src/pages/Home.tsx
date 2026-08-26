@@ -37,10 +37,10 @@ import {
 } from "lucide-react";
 
 const IMG = {
-  hero: "/manus-storage/hero_7b8e37f3.jpg",
-  cape: "/manus-storage/cape-town_c69bf609.jpg",
-  lake: "/manus-storage/lake-district_aef2b3f0.jpg",
-  arch: "/manus-storage/desert-arch_dc8b2ae6.jpg",
+  hero: "https://images.unsplash.com/photo-1506929562872-bb421503ef21?q=80&w=1600",
+  cape: "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?q=80&w=1600",
+  lake: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1600",
+  arch: "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=80&w=1600",
 };
 const destinations = [
   {
@@ -61,6 +61,24 @@ const destinations = [
     meta: "Slow travel · 5 days",
     image: IMG.lake,
   },
+  {
+    name: "Kyoto",
+    country: "Japan",
+    meta: "Culture & history · 7 days",
+    image: IMG.arch,
+  },
+  {
+    name: "Banff",
+    country: "Canada",
+    meta: "Mountains · 5 days",
+    image: IMG.arch,
+  },
+  {
+    name: "Santorini",
+    country: "Greece",
+    meta: "Islands · 6 days",
+    image: IMG.cape,
+  }
 ];
 const baseItinerary = [
   {
@@ -328,7 +346,7 @@ function SearchBar({
           />
         </div>
         {destination && (
-          <div className="absolute left-12 right-3 top-[68px] z-10 rounded-xl border bg-white p-2 text-xs shadow-xl">
+          <div className="absolute left-12 right-3 top-17 z-10 rounded-xl border bg-white p-2 text-xs shadow-xl">
             <button
               onClick={() => setDestination("Amalfi Coast")}
               className="w-full rounded-lg p-2 text-left hover:bg-[#f0eee6]"
@@ -511,14 +529,14 @@ function DestinationCard({ item }: { item: (typeof destinations)[number] }) {
   const [image, setImage] = useState(item.image);
 
   useEffect(() => {
-    if (item.image.startsWith("/manus-storage")) {
-      getDestinationImage(item.name)
+    if (item.image.includes("unsplash.com")) {
+      getDestinationImage(`${item.name} ${item.country}`)
         .then((res) => {
           if (res.url) setImage(res.url);
         })
         .catch(console.error);
     }
-  }, [item.name, item.image]);
+  }, [item.name, item.country, item.image]);
 
   return (
     <article className="card-lift group relative h-72.5 overflow-hidden rounded-[26px] text-white">
@@ -1413,6 +1431,9 @@ function Dashboard({ itineraryData }: { itineraryData: Itinerary }) {
   );
 }
 function Explore() {
+  const [showAll, setShowAll] = useState(false);
+  const displayedDestinations = showAll ? destinations : destinations.slice(0, 3);
+
   return (
     <section id="explore" className="px-5 py-24">
       <div className="mx-auto max-w-7xl">
@@ -1425,12 +1446,16 @@ function Explore() {
               Where will you feel most alive?
             </h2>
           </div>
-          <button className="flex items-center gap-2 text-sm font-semibold text-[#21463c]">
-            View all destinations <ArrowRight size={16} />
+          <button 
+            onClick={() => setShowAll(!showAll)}
+            className="flex items-center gap-2 text-sm font-semibold text-[#21463c]"
+          >
+            {showAll ? "View fewer destinations" : "View all destinations"} 
+            <ArrowRight size={16} className={`transition-transform duration-300 ${showAll ? "-rotate-90" : ""}`} />
           </button>
         </div>
-        <div className="mt-8 grid gap-4 md:grid-cols-3">
-          {destinations.map(item => (
+        <div className="mt-8 grid gap-4 md:grid-cols-3 transition-all duration-500 ease-in-out">
+          {displayedDestinations.map(item => (
             <DestinationCard key={item.name} item={item} />
           ))}
         </div>

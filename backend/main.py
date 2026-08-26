@@ -8,10 +8,9 @@ from pydantic import ValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from dotenv import load_dotenv
 
-from routers import trips, ai, places, weather, expenses, images
-
 load_dotenv()
 
+from routers import trips, ai, places, weather, expenses, images
 
 class AppException(Exception):
     def __init__(self, code: str, message: str, status_code: int = 400):
