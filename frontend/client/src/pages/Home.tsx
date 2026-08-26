@@ -14,7 +14,7 @@ import { startLogin } from "@/const";
 import { MapView } from "@/components/Map";
 import { WorkspaceExtras } from "@/components/WorkspaceExtras";
 import { useMutation } from "@tanstack/react-query";
-import { generateTrip, Itinerary, TripRequest, getDestinationImage } from "@/lib/api";
+import { generateTrip, Itinerary, TripRequest, getDestinationImage, getWeather, chat, saveTrip } from "@/lib/api";
 import {
   ArrowRight,
   CalendarDays,
@@ -41,6 +41,9 @@ const IMG = {
   cape: "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?q=80&w=1600",
   lake: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1600",
   arch: "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=80&w=1600",
+  kyoto: "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?q=80&w=1600",
+  banff: "https://images.unsplash.com/photo-1503614472-8c93d56e92ce?q=80&w=1600",
+  santorini: "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=80&w=1600"
 };
 const destinations = [
   {
@@ -65,19 +68,19 @@ const destinations = [
     name: "Kyoto",
     country: "Japan",
     meta: "Culture & history · 7 days",
-    image: IMG.arch,
+    image: IMG.kyoto,
   },
   {
     name: "Banff",
     country: "Canada",
     meta: "Mountains · 5 days",
-    image: IMG.arch,
+    image: IMG.banff,
   },
   {
     name: "Santorini",
     country: "Greece",
     meta: "Islands · 6 days",
-    image: IMG.cape,
+    image: IMG.santorini,
   }
 ];
 const baseItinerary = [
@@ -600,13 +603,37 @@ function Planner({
   });
 
   const handleGenerate = (currentForm: any) => {
+    // Parse budget: "$3,000 - $4,000" -> extract max budget, default to 4000
+    const numbers = currentForm.budget.replace(/,/g, '').match(/\d+/g);
+    const budgetVal = numbers && numbers.length > 0 ? parseInt(numbers[numbers.length - 1], 10) : 4000;
+
+    // Parse dates: "Sep 14 - 21" or fallback to today -> +7 days
+    let startDateStr = "2024-09-14";
+    let endDateStr = "2024-09-21";
+    try {
+      const parts = currentForm.dates.split('–').map((s: string) => s.trim());
+      if (parts.length >= 2) {
+        const currentYear = new Date().getFullYear();
+        const start = new Date(`${parts[0]} ${currentYear}`);
+        let endStr = parts[1];
+        if (!endStr.match(/[a-zA-Z]/)) {
+          endStr = `${parts[0].split(' ')[0]} ${endStr}`;
+        }
+        const end = new Date(`${endStr} ${currentYear}`);
+        if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+          startDateStr = start.toISOString().split('T')[0];
+          endDateStr = end.toISOString().split('T')[0];
+        }
+      }
+    } catch (e) {}
+
     const req: TripRequest = {
       destination: currentForm.destination || "Amalfi Coast",
-      origin: "New York",
-      start_date: "2024-09-14",
-      end_date: "2024-09-21",
+      origin: "New York", // Defaulting origin as per original UI constraints
+      start_date: startDateStr,
+      end_date: endDateStr,
       num_travelers: parseInt(currentForm.travelers) || 2,
-      total_budget: parseInt(currentForm.budget.replace(/\D/g, "")) || 4000,
+      total_budget: budgetVal,
       currency: "USD",
       travel_style: currentForm.stay.toLowerCase().includes("luxury")
         ? "luxury"
@@ -905,11 +932,44 @@ function Dashboard({ itineraryData }: { itineraryData: Itinerary }) {
   );
   const [assistant, setAssistant] = useState("");
   const [assistantReply, setAssistantReply] = useState("");
+  const [chatting, setChatting] = useState(false);
   const [activeTab, setActiveTab] = useState("Overview");
   const [voted, setVoted] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [editTitle, setEditTitle] = useState("");
+  const [weatherData, setWeatherData] = useState<any>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (itineraryData?.days?.[0]?.time_slots) {
+      setItems(itineraryData.days[0].time_slots);
+    }
+  }, [itineraryData]);
+
+  useEffect(() => {
+    if (itineraryData?.destination) {
+      getWeather(itineraryData.destination)
+        .then((data) => {
+          if (data && data.length > 0) setWeatherData(data[0]);
+        })
+        .catch(console.error);
+    }
+  }, [itineraryData?.destination]);
+
+  const handleSaveTrip = async () => {
+    if (!itineraryData) return;
+    setSaving(true);
+    try {
+      await saveTrip(itineraryData);
+      toast.success("Trip saved successfully to My Trips!");
+    } catch (e: any) {
+      toast.error("Failed to save trip: " + e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const editItem = (i: number) => {
     const copy = [...items];
     copy[i] = {
@@ -921,14 +981,24 @@ function Dashboard({ itineraryData }: { itineraryData: Itinerary }) {
     setItems(copy);
     toast.success("Itinerary updated");
   };
-  const askAssistant = () => {
+
+  const askAssistant = async () => {
     if (!assistant.trim()) return;
-    setAssistantReply(
-      assistant.toLowerCase().includes("rain")
-        ? "I’d swap the viewpoint for a ceramics studio and move the ferry to Friday morning. Want me to apply that?"
-        : "I found a gentler option nearby that keeps your day feeling open. I can add it to the timeline."
-    );
-    setAssistant("");
+    setChatting(true);
+    try {
+      const res = await chat({
+        trip_id: itineraryData?.trip_id || "temp",
+        message: assistant,
+        itinerary: itineraryData || ({} as Itinerary),
+        history: [],
+      });
+      setAssistantReply(res.reply);
+      setAssistant("");
+    } catch (e: any) {
+      toast.error("Failed to ask assistant: " + e.message);
+    } finally {
+      setChatting(false);
+    }
   };
   return (
     <section id="trips" className="bg-[#f7f6f1] px-5 py-24">
@@ -947,12 +1017,19 @@ function Dashboard({ itineraryData }: { itineraryData: Itinerary }) {
               TravelPlanner
             </p>
           </div>
-          <Button
-            className="w-fit rounded-full bg-[#21463c] text-white hover:bg-[#173a30]"
-            onClick={() => toast.success("Invite link copied")}
-          >
-            Invite a friend <Users size={15} />
-          </Button>
+            <Button
+              className="w-fit rounded-full bg-[#21463c] text-white hover:bg-[#173a30]"
+              onClick={handleSaveTrip}
+              disabled={saving}
+            >
+              {saving ? "Saving..." : "Save Trip"}
+            </Button>
+            <Button
+              className="w-fit rounded-full border border-[#d2d9d4] bg-transparent text-[#21463c] hover:bg-[#e8eee7]"
+              onClick={() => toast.success("Invite link copied")}
+            >
+              Invite a friend <Users size={15} />
+            </Button>
         </div>
         {notificationsOpen && (
           <div className="mb-4 rounded-2xl border border-[#dfe4db] bg-white p-4 text-sm text-[#597166]">
@@ -1055,9 +1132,10 @@ function Dashboard({ itineraryData }: { itineraryData: Itinerary }) {
                 />
                 <Button
                   onClick={askAssistant}
-                  className="mt-2 w-full rounded-xl bg-[#d96d4b] text-white"
+                  disabled={chatting}
+                  className="mt-2 w-full rounded-xl bg-[#d96d4b] text-white disabled:opacity-70"
                 >
-                  Ask TravelPlanner <Sparkles size={15} />
+                  {chatting ? "Thinking..." : "Ask TravelPlanner"} <Sparkles size={15} />
                 </Button>
               </div>
               {assistantReply && (
@@ -1102,9 +1180,11 @@ function Dashboard({ itineraryData }: { itineraryData: Itinerary }) {
                 <Sun className="text-[#d96d4b]" size={34} />
                 <div>
                   <p className="text-2xl font-semibold text-[#21463c]">
-                    24° · clear
+                    {weatherData ? `${weatherData.temperature}° · ${weatherData.description}` : "24° · clear"}
                   </p>
-                  <p className="text-sm text-[#718077]">Thursday in Positano</p>
+                  <p className="text-sm text-[#718077]">
+                    {itineraryData?.destination ? `Forecast for ${itineraryData.destination.split(',')[0]}` : "Thursday in Positano"}
+                  </p>
                 </div>
               </div>
               <div className="mt-8 rounded-2xl bg-white/65 p-4">
@@ -1154,7 +1234,7 @@ function Dashboard({ itineraryData }: { itineraryData: Itinerary }) {
                     </h3>
                     <div className="mt-5 flex flex-wrap items-center gap-4 text-sm text-white/75">
                       <span className="flex items-center gap-1.5">
-                        <Sun size={15} /> 24° clear
+                        <Sun size={15} /> {weatherData ? `${weatherData.temperature}° ${weatherData.description}` : "24° clear"}
                       </span>
                       <span className="flex items-center gap-1.5">
                         <Wallet size={15} /> $820 left
