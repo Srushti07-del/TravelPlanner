@@ -10,7 +10,7 @@ export function WorkspaceExtras({ tab }: { tab: string }) {
   useEffect(() => {
     if (tab === "My Trips") {
       setLoading(true);
-      getUserTrips()
+      getUserTrips("default-user")
         .then((data) => setTrips(data))
         .catch((e) => toast.error("Failed to load trips: " + e.message))
         .finally(() => setLoading(false));

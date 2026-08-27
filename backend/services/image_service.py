@@ -39,6 +39,7 @@ class ImageService:
             return self._get_fallback_image(query)
 
         try:
+            logger.info(f"Calling Unsplash API for query: {query}")
             async with httpx.AsyncClient() as client:
                 response = await client.get(
                     f"{self.base_url}/search/photos",

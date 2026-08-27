@@ -961,7 +961,11 @@ function Dashboard({ itineraryData }: { itineraryData: Itinerary }) {
     if (!itineraryData) return;
     setSaving(true);
     try {
-      await saveTrip(itineraryData);
+      await saveTrip({
+        user_id: "default-user",
+        itinerary: itineraryData,
+        title: `${itineraryData.destination} Trip`
+      });
       toast.success("Trip saved successfully to My Trips!");
     } catch (e: any) {
       toast.error("Failed to save trip: " + e.message);
