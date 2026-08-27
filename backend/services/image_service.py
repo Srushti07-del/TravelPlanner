@@ -31,12 +31,18 @@ class ImageService:
 
     async def get_image_for_destination(self, query: str) -> str:
         """Fetch a relevant high-resolution image URL from Unsplash based on a query."""
-        if query in self._cache:
-            return self._cache[query]
+        images = await self.get_images_for_destination(query, 1)
+        return images[0] if images else self._get_fallback_image(query)
+        
+    async def get_images_for_destination(self, query: str, count: int = 3) -> list[str]:
+        """Fetch multiple relevant high-resolution image URLs from Unsplash."""
+        cache_key = f"{query}_{count}"
+        if cache_key in self._cache:
+            return self._cache[cache_key]
             
         if not self.access_key:
             logger.warning("UNSPLASH_ACCESS_KEY is not set. Using fallback images.")
-            return self._get_fallback_image(query)
+            return [self._get_fallback_image(query)] * count
 
         try:
             logger.info(f"Calling Unsplash API for query: {query}")
@@ -45,7 +51,7 @@ class ImageService:
                     f"{self.base_url}/search/photos",
                     params={
                         "query": f"{query} landmark landscape",
-                        "per_page": 1,
+                        "per_page": count,
                         "orientation": "landscape"
                     },
                     headers={
@@ -57,15 +63,18 @@ class ImageService:
                 data = response.json()
                 
                 if data["results"]:
-                    img_url = data["results"][0]["urls"]["regular"]
-                    self._cache[query] = img_url
-                    return img_url
+                    img_urls = [res["urls"]["regular"] for res in data["results"]]
+                    # Fill missing ones with fallback if Unsplash didn't return enough
+                    while len(img_urls) < count:
+                        img_urls.append(self._get_fallback_image(query))
+                    self._cache[cache_key] = img_urls
+                    return img_urls
                 else:
-                    return self._get_fallback_image(query)
+                    return [self._get_fallback_image(query)] * count
                     
         except Exception as e:
             logger.error(f"Failed to fetch image from Unsplash for query '{query}': {e}")
-            return self._get_fallback_image(query)
+            return [self._get_fallback_image(query)] * count
             
     def _get_fallback_image(self, query: str) -> str:
         """Returns a deterministic placeholder image based on the query string."""

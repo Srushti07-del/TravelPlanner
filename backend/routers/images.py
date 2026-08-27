@@ -12,3 +12,11 @@ async def get_destination_image(query: str) -> Dict[str, str]:
     """
     image_url = await image_service.get_image_for_destination(query)
     return {"url": image_url}
+
+@router.get("/multiple")
+async def get_multiple_destination_images(query: str, count: int = 3) -> Dict[str, list[str]]:
+    """
+    Fetch multiple dynamic image URLs for a given destination query.
+    """
+    image_urls = await image_service.get_images_for_destination(query, count)
+    return {"urls": image_urls}

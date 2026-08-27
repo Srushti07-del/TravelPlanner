@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends
-from models.schemas import ChatRequest, ChatResponse, ReplanRequest, ReplanResponse, PackingListRequest, PackingListResponse
+from models.schemas import ChatRequest, ChatResponse, ReplanRequest, ReplanResponse, PackingListRequest, PackingListResponse, DestinationInfoResponse
 from services.gemini_service import GeminiService
 from services.auth import get_current_user, AuthenticatedUser
 from db.supabase_client import save_trip_change, get_trip, update_trip
@@ -70,3 +70,13 @@ async def generate_packing_list(request: PackingListRequest, user: Authenticated
         raise HTTPException(status_code=422, detail=str(exc))
     except Exception as exc:
         raise HTTPException(status_code=500, detail="An unexpected error occurred.")
+
+@router.get("/destination-info", response_model=DestinationInfoResponse)
+async def get_destination_info(country: str):
+    try:
+        data = await gemini_service.get_destination_info(country)
+        return DestinationInfoResponse(**data)
+    except Exception as exc:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred while getting destination info: {str(exc)}")

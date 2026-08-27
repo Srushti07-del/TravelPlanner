@@ -15,7 +15,7 @@ class GeminiService:
 
     def __init__(self):
         self._client: genai.Client | None = None
-        self.model = "gemini-2.0-flash"
+        self.model = "gemini-3.6-flash"
 
     @property
     def client(self) -> genai.Client:
@@ -305,3 +305,17 @@ Return ONLY raw valid JSON (no markdown, no code blocks) matching this exact sch
         
         packing_list_data = data.get("packing_list", [])
         return [PackingListCategory(**cat) for cat in packing_list_data]
+
+    async def get_destination_info(self, country: str) -> dict:
+        prompt = f"""You are a knowledgeable travel expert. Provide a short travel preview for the destination/country: {country}.
+Return ONLY raw valid JSON (no markdown, no code blocks) matching this exact schema:
+{{
+  "summary": "A 1-2 sentence compelling summary of what makes {country} special.",
+  "best_time_to_visit": "e.g., Spring (March-May) or Autumn (Sept-Nov)",
+  "ideal_duration": "e.g., 10-14 days",
+  "currency": "e.g., Japanese Yen (JPY)"
+}}
+"""
+        text = await self._generate_content(prompt, temperature=0.5)
+        data = self._extract_json(text)
+        return data

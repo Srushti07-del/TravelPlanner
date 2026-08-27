@@ -238,3 +238,10 @@ class ExpenseUpdate(BaseModel):
     amount: Optional[float] = None
     description: Optional[str] = None
     expense_date: Optional[str] = None
+
+class DestinationInfoResponse(BaseModel):
+    summary: str
+    best_time_to_visit: str
+    ideal_duration: str
+    currency: str
+

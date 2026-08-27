@@ -174,6 +174,14 @@ export interface PackingListResponse {
   packing_list: PackingListCategory[];
 }
 
+export interface DestinationInfoResponse {
+  summary: string;
+  best_time_to_visit: string;
+  ideal_duration: string;
+  currency: string;
+}
+
+
 export interface Expense {
   id?: string;
   trip_id: string;
@@ -300,6 +308,10 @@ export async function generatePackingList(request: PackingListRequest): Promise<
   });
 }
 
+export async function getDestinationInfo(country: string): Promise<DestinationInfoResponse> {
+  return fetchApi<DestinationInfoResponse>(`/ai/destination-info?country=${encodeURIComponent(country)}`);
+}
+
 // --- PLACES ---
 export async function searchPlaces(query: string, location: string): Promise<any[]> {
   return fetchApi<any[]>(`/places/search?query=${encodeURIComponent(query)}&location=${encodeURIComponent(location)}`);
@@ -317,6 +329,10 @@ export async function getWeather(destination: string): Promise<any[]> {
 // --- IMAGES ---
 export async function getDestinationImage(query: string): Promise<{ url: string }> {
   return fetchApi<{ url: string }>(`/images?query=${encodeURIComponent(query)}`);
+}
+
+export async function getMultipleDestinationImages(query: string, count: number = 3): Promise<{ urls: string[] }> {
+  return fetchApi<{ urls: string[] }>(`/images/multiple?query=${encodeURIComponent(query)}&count=${count}`);
 }
 
 // --- EXPENSES ---

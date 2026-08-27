@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { startLogin } from "@/const";
 import { MapView } from "@/components/Map";
 import { WorkspaceExtras } from "@/components/WorkspaceExtras";
+import { DestinationPreview } from "@/components/DestinationPreview";
 import { useMutation } from "@tanstack/react-query";
 import { generateTrip, Itinerary, TripRequest, getDestinationImage, getWeather, chat, saveTrip } from "@/lib/api";
 import {
@@ -1589,6 +1590,8 @@ export default function Home() {
   const [itineraryData, setItineraryData] = useState<Itinerary | null>(null);
   const [selectedDates, setSelectedDates] = useState("");
   const [selectedStyle, setSelectedStyle] = useState("");
+  const [previewDestination, setPreviewDestination] = useState<string | null>(null);
+
   const jumpToPlanner = (place?: string, dates?: string, style?: string) => {
     if (place) setDestination(place);
     if (dates) setSelectedDates(dates);
@@ -1613,6 +1616,25 @@ export default function Home() {
       20
     );
   };
+  const jumpToPreview = (place?: string, dates?: string, style?: string) => {
+    if (place) {
+      setPreviewDestination(place);
+      if (dates) setSelectedDates(dates);
+      if (style) setSelectedStyle(style);
+    } else {
+      jumpToPlanner(place, dates, style);
+    }
+  };
+
+  const handlePreviewContinue = (place: string) => {
+    setPreviewDestination(null);
+    jumpToPlanner(place);
+  };
+
+  const handlePreviewCancel = () => {
+    setPreviewDestination(null);
+  };
+
   return (
     <div className="min-h-screen overflow-hidden bg-[#f5f4ef]">
       {view === "home" && (
@@ -1641,7 +1663,7 @@ export default function Home() {
                 </p>
                 <div className="fade-up fade-up-delay-3 mt-9 max-w-4xl">
                   <SearchBar
-                    onPlan={(place) => jumpToPlanner(place)}
+                    onPlan={(place) => jumpToPreview(place)}
                     dates={selectedDates}
                     onDatesChange={setSelectedDates}
                     style={selectedStyle}
@@ -1700,6 +1722,13 @@ export default function Home() {
           )}
           <Explore />
         </>
+      )}
+      {previewDestination && (
+        <DestinationPreview
+          destination={previewDestination}
+          onContinue={handlePreviewContinue}
+          onCancel={handlePreviewCancel}
+        />
       )}
       <footer className="bg-[#172c26] px-5 py-10 text-white">
         <div className="mx-auto flex max-w-7xl flex-col justify-between gap-6 sm:flex-row sm:items-center">
