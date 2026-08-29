@@ -44,13 +44,14 @@ class ImageService:
             logger.warning("UNSPLASH_ACCESS_KEY is not set. Using fallback images.")
             return [self._get_fallback_image(query)] * count
 
+        enhanced_query = f"{query} beautiful landscape travel landmark"
         try:
-            logger.info(f"Calling Unsplash API for query: {query}")
+            logger.info(f"Calling Unsplash API for query: {enhanced_query}")
             async with httpx.AsyncClient() as client:
                 response = await client.get(
                     f"{self.base_url}/search/photos",
                     params={
-                        "query": f"{query} landmark landscape",
+                        "query": enhanced_query,
                         "per_page": count,
                         "orientation": "landscape"
                     },

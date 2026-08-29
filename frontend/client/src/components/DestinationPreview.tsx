@@ -133,7 +133,7 @@ export function DestinationPreview({ destination, onContinue, onCancel }: Destin
                 <div className="flex items-start gap-4 rounded-2xl bg-white p-5 shadow-sm">
                   <Clock className="text-[#7f9fc2] shrink-0" size={24} />
                   <div>
-                    <h4 className="text-xs font-bold uppercase tracking-widest text-[#718077]">Duration</h4>
+                    <h4 className="text-xs font-bold uppercase tracking-widest text-[#718077]">Recommended</h4>
                     <p className="mt-1 font-semibold text-[#21463c]">{info.ideal_duration}</p>
                   </div>
                 </div>

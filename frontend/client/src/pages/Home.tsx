@@ -345,6 +345,11 @@ function SearchBar({
           <Input
             value={destination}
             onChange={e => setDestination(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter' && destination.trim()) {
+                onPlan(destination.trim());
+              }
+            }}
             className="h-5 border-0 bg-transparent p-0 text-[#1d332c] text-sm font-semibold shadow-none focus-visible:ring-0"
             placeholder="A place you dream of"
           />
@@ -583,6 +588,7 @@ function Planner({
   const [step, setStep] = useState(0);
   const [planning, setPlanning] = useState(false);
   const [form, setForm] = useState({
+    origin: "",
     destination,
     dates: initialDates || "Sep 14 – 21",
     budget: "$3,000 – $4,000",
@@ -630,7 +636,7 @@ function Planner({
 
     const req: TripRequest = {
       destination: currentForm.destination || "Amalfi Coast",
-      origin: "New York", // Defaulting origin as per original UI constraints
+      origin: currentForm.origin || "New York", // Defaulting origin if empty
       start_date: startDateStr,
       end_date: endDateStr,
       num_travelers: parseInt(currentForm.travelers) || 2,
@@ -653,9 +659,9 @@ function Planner({
   const steps = [
     {
       eyebrow: "Let’s begin",
-      title: "Where are you longing to go?",
-      key: "destination",
-      options: ["Amalfi Coast", "Kyoto", "Patagonia", "Somewhere surprising"],
+      title: "Where are you leaving from?",
+      key: "origin",
+      options: ["New York", "London", "Mumbai", "I'll decide later"],
     },
     {
       eyebrow: "Set the rhythm",
