@@ -93,7 +93,7 @@ class GeminiService:
 
     async def generate_itinerary(self, request: TripRequest) -> dict:
         num_days = (request.end_date - request.start_date).days + 1
-        prompt = f"""You are an expert AI Travel Planner specialising in Indian travel.
+        prompt = f"""You are an expert AI Travel Planner.
 
 Trip Details:
 - From: {request.origin}
@@ -108,7 +108,7 @@ Trip Details:
 - Transport Preference: {request.transport_preference.value}
 - Special Requests: {request.special_requests or 'None'}
 
-Generate a complete, realistic, day-by-day itinerary. Use real place names and realistic INR costs.
+Generate a complete, realistic, day-by-day itinerary. Use real place names and realistic costs.
 
 IMPORTANT: Do NOT invent factual data such as coordinates, ratings, opening hours, addresses, or exact prices. Leave lat/lng as 0.0. Leave rating as 0.0. Leave distance fields as 0.0. The backend will enrich these with real external data.
 
@@ -179,7 +179,7 @@ Important rules:
 3. Include {num_days} days exactly
 4. Include 3-5 time_slots per day and 2-3 restaurants per day
 5. Use realistic place names for the destination
-6. Costs must be realistic for {request.travel_style.value} travel in India
+6. Costs must be realistic for {request.travel_style.value} travel
 """
         text = await self._generate_content(prompt, temperature=0.7)
         data = self._extract_json(text)

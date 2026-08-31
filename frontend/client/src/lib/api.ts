@@ -258,8 +258,8 @@ export async function generateTrip(request: TripRequest): Promise<Itinerary> {
   });
 }
 
-export async function saveTrip(request: SaveTripRequest): Promise<{ trip_id: string }> {
-  return fetchApi<{ trip_id: string }>("/trips/save", {
+export async function saveTrip(request: SaveTripRequest): Promise<{ id: string; trip_id: string; title: string }> {
+  return fetchApi<{ id: string; trip_id: string; title: string }>("/trips/save", {
     method: "POST",
     body: JSON.stringify(request),
   });

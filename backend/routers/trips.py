@@ -145,7 +145,8 @@ async def save_generated_trip(request: SaveTripRequest, user: AuthenticatedUser 
             "budget_breakdown": request.itinerary.budget_breakdown.model_dump()
         }
         saved = await save_trip(data)
-        return {"id": saved.get("id"), "title": saved.get("title")}
+        trip_id = saved.get("id")
+        return {"id": trip_id, "trip_id": trip_id, "title": saved.get("title")}
     except Exception as exc:
         raise HTTPException(status_code=500, detail="An unexpected error occurred.")
 

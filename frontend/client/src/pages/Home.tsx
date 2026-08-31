@@ -590,7 +590,9 @@ function Planner({
   const [form, setForm] = useState({
     origin: "",
     destination,
-    dates: initialDates || "Sep 14 – 21",
+    dates: initialDates || "",
+    startDate: new Date().toISOString().split('T')[0],
+    endDate: new Date(Date.now() + 3 * 86400000).toISOString().split('T')[0],
     budget: "$3,000 – $4,000",
     travelers: "2 travelers",
     stay: initialStyle || "Boutique stay",
@@ -614,25 +616,9 @@ function Planner({
     const numbers = currentForm.budget.replace(/,/g, '').match(/\d+/g);
     const budgetVal = numbers && numbers.length > 0 ? parseInt(numbers[numbers.length - 1], 10) : 4000;
 
-    // Parse dates: "Sep 14 - 21" or fallback to today -> +7 days
-    let startDateStr = "2024-09-14";
-    let endDateStr = "2024-09-21";
-    try {
-      const parts = currentForm.dates.split('–').map((s: string) => s.trim());
-      if (parts.length >= 2) {
-        const currentYear = new Date().getFullYear();
-        const start = new Date(`${parts[0]} ${currentYear}`);
-        let endStr = parts[1];
-        if (!endStr.match(/[a-zA-Z]/)) {
-          endStr = `${parts[0].split(' ')[0]} ${endStr}`;
-        }
-        const end = new Date(`${endStr} ${currentYear}`);
-        if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
-          startDateStr = start.toISOString().split('T')[0];
-          endDateStr = end.toISOString().split('T')[0];
-        }
-      }
-    } catch (e) {}
+    const today = new Date();
+    let startDateStr = currentForm.startDate || today.toISOString().split('T')[0];
+    let endDateStr = currentForm.endDate || new Date(today.getTime() + 3 * 86400000).toISOString().split('T')[0];
 
     const req: TripRequest = {
       destination: currentForm.destination || "Amalfi Coast",
@@ -665,14 +651,9 @@ function Planner({
     },
     {
       eyebrow: "Set the rhythm",
-      title: "When and with whom?",
+      title: "When are you traveling?",
       key: "dates",
-      options: [
-        "Sep 14 – 21 · 2 travelers",
-        "October · just me",
-        "Spring break · 4 travelers",
-        "I’m flexible",
-      ],
+      options: [],
     },
     {
       eyebrow: "Shape the details",
@@ -717,6 +698,9 @@ function Planner({
               <span className="h-4 w-4 animate-spin rounded-full border border-white/20 border-t-[#d96d4b]" />{" "}
               Mapping the moments in between
             </div>
+          </div>
+          <div className="mt-8 text-xs text-white/40 italic">
+            Please wait up to 60 seconds while our AI generates your detailed itinerary.
           </div>
         </div>
       </section>
@@ -785,11 +769,6 @@ function Planner({
               placeholder="Destination"
             />
             <Input
-              value={form.dates}
-              onChange={(e: any) => setForm({ ...form, dates: e.target.value })}
-              placeholder="Dates"
-            />
-            <Input
               value={form.budget}
               onChange={(e: any) => setForm({ ...form, budget: e.target.value })}
               placeholder="Budget"
@@ -820,33 +799,66 @@ function Planner({
               placeholder="Preferred activities"
             />
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {current.options.map((option, i) => (
-              <button
-                key={option}
+          {current.key === "dates" ? (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-semibold text-[#284b40]">Start Date</label>
+                <Input 
+                  type="date" 
+                  value={form.startDate} 
+                  onChange={(e: any) => setForm({ ...form, startDate: e.target.value })} 
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-semibold text-[#284b40]">End Date</label>
+                <Input 
+                  type="date" 
+                  value={form.endDate} 
+                  onChange={(e: any) => setForm({ ...form, endDate: e.target.value })} 
+                />
+              </div>
+              <Button 
                 onClick={() => {
-                  setForm({ ...form, [current.key]: option });
                   if (step < steps.length - 1) setStep(step + 1);
                   else {
                     setPlanning(true);
-                    handleGenerate({ ...form, [current.key]: option });
+                    handleGenerate(form);
                   }
                 }}
-                className="card-lift group rounded-2xl border border-[#dfe5dc] bg-white p-5 text-left hover:border-[#d96d4b] hover:bg-[#fffaf4]"
+                className="col-span-full mt-4 h-12 w-full rounded-full bg-[#d96d4b] text-base font-semibold text-white hover:bg-[#c25e3e]"
               >
-                <span className="text-xs font-bold text-[#9ba69d]">
-                  0{i + 1}
-                </span>
-                <span className="mt-8 flex items-center justify-between text-base font-semibold text-[#284b40]">
-                  {option}
-                  <ArrowRight
-                    size={16}
-                    className="text-[#c8d0c8] group-hover:translate-x-1 group-hover:text-[#d96d4b]"
-                  />
-                </span>
-              </button>
-            ))}
-          </div>
+                Continue <ArrowRight size={16} className="ml-2" />
+              </Button>
+            </div>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {current.options.map((option, i) => (
+                <button
+                  key={option}
+                  onClick={() => {
+                    setForm({ ...form, [current.key]: option });
+                    if (step < steps.length - 1) setStep(step + 1);
+                    else {
+                      setPlanning(true);
+                      handleGenerate({ ...form, [current.key]: option });
+                    }
+                  }}
+                  className="card-lift group rounded-2xl border border-[#dfe5dc] bg-white p-5 text-left hover:border-[#d96d4b] hover:bg-[#fffaf4]"
+                >
+                  <span className="text-xs font-bold text-[#9ba69d]">
+                    0{i + 1}
+                  </span>
+                  <span className="mt-8 flex items-center justify-between text-base font-semibold text-[#284b40]">
+                    {option}
+                    <ArrowRight
+                      size={16}
+                      className="text-[#c8d0c8] group-hover:translate-x-1 group-hover:text-[#d96d4b]"
+                    />
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
           <button
             onClick={() => step > 0 && setStep(step - 1)}
             className="mt-6 text-sm font-semibold text-[#8a968e]"
@@ -947,12 +959,25 @@ function Dashboard({ itineraryData }: { itineraryData: Itinerary }) {
   const [editTitle, setEditTitle] = useState("");
   const [weatherData, setWeatherData] = useState<any>(null);
   const [saving, setSaving] = useState(false);
+  // savedTripId stores the ID returned by the backend after the first save.
+  // Subsequent "save" clicks will update the same record instead of creating
+  // a new one, preventing duplicate trips.
+  const [savedTripId, setSavedTripId] = useState<string | null>(
+    itineraryData?.trip_id ?? null
+  );
 
   useEffect(() => {
     if (itineraryData?.days?.[0]?.time_slots) {
       setItems(itineraryData.days[0].time_slots);
     }
   }, [itineraryData]);
+
+  // If the itinerary already carries a trip_id (e.g. loaded from DB), use it.
+  useEffect(() => {
+    if (itineraryData?.trip_id) {
+      setSavedTripId(itineraryData.trip_id);
+    }
+  }, [itineraryData?.trip_id]);
 
   useEffect(() => {
     if (itineraryData?.destination) {
@@ -966,14 +991,33 @@ function Dashboard({ itineraryData }: { itineraryData: Itinerary }) {
 
   const handleSaveTrip = async () => {
     if (!itineraryData) return;
+    // Prevent duplicate saves while one is already in flight.
+    if (saving) return;
+
     setSaving(true);
     try {
-      await saveTrip({
-        user_id: "default-user",
+      // The backend derives the authenticated user from the JWT in the
+      // Authorization header (forwarded automatically by getAuthHeader() in
+      // api.ts). The user_id field is required by the schema but the server
+      // overwrites it with the JWT subject, so "me" is a safe placeholder.
+      const title = `${itineraryData.destination} Trip`;
+
+      const response = await saveTrip({
+        user_id: "me",
         itinerary: itineraryData,
-        title: `${itineraryData.destination} Trip`
+        title,
       });
-      toast.success("Trip saved successfully to My Trips!");
+
+      // Store the returned ID so subsequent saves update the same record.
+      const returnedId = response?.trip_id ?? response?.id;
+      if (returnedId) {
+        setSavedTripId(returnedId);
+        // Patch the in-memory itinerary so future operations (chat, replan)
+        // carry the correct trip_id without needing a page reload.
+        (itineraryData as any).trip_id = returnedId;
+      }
+
+      toast.success("Trip saved! You'll find it in My Trips.");
     } catch (e: any) {
       toast.error("Failed to save trip: " + e.message);
     } finally {
@@ -1031,9 +1075,9 @@ function Dashboard({ itineraryData }: { itineraryData: Itinerary }) {
             <Button
               className="w-fit rounded-full bg-[#21463c] text-white hover:bg-[#173a30]"
               onClick={handleSaveTrip}
-              disabled={saving}
+              disabled={saving || !!savedTripId}
             >
-              {saving ? "Saving..." : "Save Trip"}
+              {saving ? "Saving..." : savedTripId ? "Saved ✓" : "Save Trip"}
             </Button>
             <Button
               className="w-fit rounded-full border border-[#d2d9d4] bg-transparent text-[#21463c] hover:bg-[#e8eee7]"
